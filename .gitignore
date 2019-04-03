@@ -1,0 +1,8 @@
+#gitignore
+
+.DS_Store
+Icon?
+*~
+data
+eyedata
+figures
