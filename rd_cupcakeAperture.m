@@ -1,16 +1,18 @@
-function results = rd_cupcakeMEGPilot1Aperture(subjectID)
+function results = rd_cupcakeAperture(subjectID)
 
 %% Setup
 if nargin==0
     subjectID = 'test';
 end
 
+expName = 'CupcakeAperture';
+
 saveData = 1;
 saveFigs = 1;
 plotTimingFigs = 1;
 saveTimingFigs = 1;
 
-p = cupcakeMEGParams;
+p = cupcakeApertureParams;
     
 if strcmp(subjectID,'test')
     p.eyeTracking = 0;
@@ -44,7 +46,7 @@ if ~isempty(existingEyeFile) && p.eyeTracking
 end
 
 %% Check for existing data file
-dataFile = sprintf('%s_cupcakeMEG_%s.mat', subjectID, datestr(now, 'yyyymmdd'));
+dataFile = sprintf('%s_%s_%s.mat', subjectID, expName, datestr(now, 'yyyymmdd'));
 existingDataFile = dir(sprintf('data/%s', dataFile));
 if ~isempty(existingDataFile) && ~strcmp(subjectID, 'test') && ~strcmp(subjectID, 'testy')
     error('data file already exists!')
@@ -173,7 +175,19 @@ nTrials = size(trials,1);
 % show trials and blocks
 fprintf('\n%s\n\n%d trials, %1.2f blocks\n\n', datestr(now), nTrials, nTrials/p.nTrialsPerBlock)
 
-% Choose order of trial presentation
+% Generate ITIs
+nITIs = numel(p.itis);
+itis = repmat(p.itis,1,ceil(nTrials/nITIs));
+trials(:,itiIdx) = itis(randperm(nTrials));
+
+% Generate target states
+tsConds = ones(1,nTrials)*2; % target absent
+idx = randperm(nTrials);
+nTargets = round(nTrials*p.propTargetPresent);
+tsConds(idx(1:nTargets)) = 1; % target present
+trials(:,targetStateIdx) = tsConds;
+
+%% Choose order of trial presentation
 % trialOrder = randperm(nTrials);
 % This randomizes trial order within reps, but not across reps. So we will
 % present every trial in one rep before moving on to the next rep. In this
@@ -188,17 +202,8 @@ end
 trialOrder0 = repOrders + (trialSet-1).*nt;
 trialOrder = trialOrder0(:);
 
-% Generate ITIs
-nITIs = numel(p.itis);
-itis = repmat(p.itis,1,ceil(nTrials/nITIs));
-trials(:,itiIdx) = itis(randperm(nTrials));
-
-% Generate target states
-tsConds = ones(1,nTrials)*2; % target absent
-idx = randperm(nTrials);
-nTargets = round(nTrials*p.propTargetPresent);
-tsConds(idx(1:nTargets)) = 1; % target present
-trials(:,targetStateIdx) = tsConds;
+% shuffle trials
+trials = trials(trialOrder,:);
 
 %% Eyetracker
 if p.eyeTracking    
@@ -257,14 +262,13 @@ timeFix = Screen('Flip', window);
 
 % Present trials
 for iTrial = 1:nTrials
-    trialIdx = trialOrder(iTrial); % the current index into trials
     
     % Get conditions for this trial
-    oriCond = trials(trialIdx, gratingOrientationIdx);
-    phaseCond = trials(trialIdx, gratingPhaseIdx);
-    contrastCond = trials(trialIdx, gratingContrastIdx);
-    tsCond = trials(trialIdx, targetStateIdx);
-    iti = trials(trialIdx, itiIdx) + extraITI;
+    oriCond = trials(iTrial, gratingOrientationIdx);
+    phaseCond = trials(iTrial, gratingPhaseIdx);
+    contrastCond = trials(iTrial, gratingContrastIdx);
+    tsCond = trials(iTrial, targetStateIdx);
+    iti = trials(iTrial, itiIdx) + extraITI;
     
     % Get actual values
     orientation = p.gratingOrientations(oriCond);
@@ -371,22 +375,19 @@ for iTrial = 1:nTrials
     end
    
     % Store trial info
-    trials(trialIdx,iti2Idx) = iti; % the actual ITI, including extra delay
-    trials(trialIdx,fixColorIdx) = fixColor;
-    trials(trialIdx,responseKeyIdx) = responseKey;
-    trials(trialIdx,responseIdx) = response;
-    trials(trialIdx,correctIdx) = correct;
-    trials(trialIdx,rtIdx) = rt;
+    trials(iTrial,iti2Idx) = iti; % the actual ITI, including extra delay
+    trials(iTrial,fixColorIdx) = fixColor;
+    trials(iTrial,responseKeyIdx) = responseKey;
+    trials(iTrial,responseIdx) = response;
+    trials(iTrial,correctIdx) = correct;
+    trials(iTrial,rtIdx) = rt;
         
     % Store timing
-    timing.timeIm(trialIdx,1) = timeIm;
-    timing.timeTone(trialIdx,1) = timeTone;
-    timing.timeFix(trialIdx,1) = timeFix;
+    timing.timeIm(iTrial,1) = timeIm;
+    timing.timeTone(iTrial,1) = timeTone;
+    timing.timeFix(iTrial,1) = timeFix;
     
     % Store presented trial info
-    trialsPresented.trials(iTrial,:) = nan(1,length(trials_headers));
-    trialsPresented.trials(iTrial,:) = trials(trialIdx,:);
-    trialsPresented.vals(iTrial).trialIdx = trialIdx;
     trialsPresented.vals(iTrial).iti = iti;
     trialsPresented.vals(iTrial).orientation = orientation;
     trialsPresented.vals(iTrial).phase = phase;
@@ -403,10 +404,10 @@ for iTrial = 1:nTrials
         if blockStartTrial < 0 % we are doing less than one block
             blockStartTrial = 1;
         end
-        inBlock = zeros(size(trials,1),1);
-        inBlock(trialOrder(blockStartTrial:iTrial)) = 1;
-        blockHit = mean(trials(inBlock & trials(:,targetStateIdx)==1,correctIdx));
-        blockFA = 1-mean(trials(inBlock & trials(:,targetStateIdx)==2,correctIdx));
+        trialsInBlock = trials(blockStartTrial:iTrial,:);
+        ts = trialsInBlock(:,targetStateIdx);
+        blockHit = mean(trialsInBlock(ts==1,correctIdx));
+        blockFA = 1-mean(trialsInBlock(ts==2,correctIdx));
         
         accMessage = sprintf('Hit rate: %d%%\nFalse alarm rate: %d%%', ...
             round(blockHit*100), round(blockFA*100));
@@ -443,7 +444,6 @@ WaitSecs(2);
 expt.subjectID = subjectID;
 expt.p = p;
 expt.timing = timing;
-expt.trialOrder = trialOrder;
 expt.trials_headers = trials_headers;
 expt.trials = trials;
 expt.trialsPresented = trialsPresented;
@@ -465,7 +465,7 @@ if p.eyeTracking
     rd_eyeLink('eyestop', window, {eyeFile, eyeDataDir});
     
     % rename eye file
-    eyeFileFull = sprintf('%s/%s_TemporalAttention_%s.edf', eyeDataDir, subjectID, datestr(now, 'yyyymmdd'));
+    eyeFileFull = sprintf('%s/%s_%s_%s.edf', eyeDataDir, subjectID, expName, datestr(now, 'yyyymmdd'));
     copyfile(sprintf('%s/%s.edf', eyeDataDir, eyeFile), eyeFileFull)
 end
 

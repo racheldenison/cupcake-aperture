@@ -1,4 +1,4 @@
-function p = cupcakeMEGParams
+function p = cupcakeApertureParams
 
 p.testingLocation = 'desk'; % 'CarrascoL1','desk'
 
@@ -44,7 +44,7 @@ p.imPos = [0 0];
 p.imSize = [5 5]; % this is the size of the image container that holds the stim
 p.gratingDiameter = [4 1]; % [outer inner] 
 p.gratingSF = 1.5; % cpd
-p.gratingOrientations = 1:180; 
+p.gratingOrientations = 0:10:179; 
 p.gratingPhases = [0 pi/2 pi 3*pi/2]; % eg. 0, or [0 pi/2 pi 3*pi/2]
 p.gratingContrasts = 0.05; 
 p.aperture = 'cosyne-ring';
