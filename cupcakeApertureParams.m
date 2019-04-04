@@ -46,12 +46,13 @@ p.gratingDiameter = [4 1]; % [outer inner]
 p.gratingSF = 1.5; % cpd
 p.gratingOrientations = 0:10:179; 
 p.gratingPhases = [0 pi/2 pi 3*pi/2]; % eg. 0, or [0 pi/2 pi 3*pi/2]
-p.gratingContrasts = 0.05; 
+p.gratingContrasts = 1; 
 p.aperture = 'cosyne-ring';
 p.apertureEdgeWidth = 0.5;
 if strfind(p.aperture,'radial')
     p.apertureSF = 1/(2*p.apertureEdgeWidth);
 end
+p.rotateOnFly = 1; % 0 for pre-generate all orientation textures, 1 for rotate when presenting image
 
 % Task
 p.targetStates = [1 0]; % 1=present, 0=absent

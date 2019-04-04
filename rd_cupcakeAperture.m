@@ -24,7 +24,9 @@ ppd = ang2pix(1, p.screenSize(1), p.screenRes(1), p.viewDist, 'central'); % pixe
 % Running on PTB-3? Abort otherwise.
 AssertOpenGL;
 
-Screen('Preference', 'SkipSyncTests', 1); %%%%
+if strcmp(p.testingLocation, 'desk')
+    Screen('Preference', 'SkipSyncTests', 1);
+end
 
 %% Display key settings to the experimenter
 fprintf('\nExperiment settings:\n')
@@ -123,19 +125,26 @@ gratingRadius = round(p.gratingDiameter/2*ppd);
 edgeWidth = round(p.apertureEdgeWidth*ppd);
 
 % Make grating images and textures
-orientation = 0; 
+if p.rotateOnFly
+    gratingOrientations = 0;
+else
+    gratingOrientations = p.gratingOrientations;
+end
 spatialFrequency = p.gratingSF;
 
-for iP = 1:numel(p.gratingPhases)
-    phase = p.gratingPhases(iP);
-    for iC = 1:numel(p.gratingContrasts)
-        contrast = p.gratingContrasts(iC);
-        
-        grating = rd_grating(ppd, p.imSize(1), ...
-            spatialFrequency, orientation, phase, contrast);
-        
-        ims{iP,iC} = rd_aperture(grating, p.aperture, gratingRadius, edgeWidth);
-        texs(iP,iC) = Screen('MakeTexture', window, ims{iP,iC}*white);
+for iO = 1:numel(gratingOrientations)
+    orientation = gratingOrientations(iO);
+    for iP = 1:numel(p.gratingPhases)
+        phase = p.gratingPhases(iP);
+        for iC = 1:numel(p.gratingContrasts)
+            contrast = p.gratingContrasts(iC);
+            
+            grating = rd_grating(ppd, p.imSize(1), ...
+                spatialFrequency, orientation, phase, contrast);
+            
+            ims{iO,iP,iC} = rd_aperture(grating, p.aperture, gratingRadius, edgeWidth);
+            texs(iO,iP,iC) = Screen('MakeTexture', window, ims{iO,iP,iC}*white);
+        end
     end
 end
 
@@ -277,7 +286,11 @@ for iTrial = 1:nTrials
     targetState = p.targetStates(tsCond);
     
     % Select target textures
-    tex = texs(phaseCond,contrastCond);
+    if p.rotateOnFly
+        tex = texs(1,phaseCond,contrastCond);
+    else
+        tex = texs(oriCond,phaseCond,contrastCond);
+    end
     
     % Set fixation contrast based on staircase
     if p.staircase
@@ -292,7 +305,11 @@ for iTrial = 1:nTrials
     
     % Present image
     drawPlaceholders(window, white, p.backgroundColor*white, phRect, p.phLineWidth, p.showPlaceholders)
-    Screen('DrawTexture', window, tex, [], imRect, orientation);
+    if p.rotateOnFly
+        Screen('DrawTexture', window, tex, [], imRect, orientation);
+    else
+        Screen('DrawTexture', window, tex, [], imRect);
+    end
     DrawFormattedText(window, 'x', 'center', 'center', fixColor*white); % fixColor can change trial to trial
     timeIm = Screen('Flip', window, timeFix + iti - slack);
     if p.eyeTracking
