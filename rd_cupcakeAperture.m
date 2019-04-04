@@ -32,10 +32,10 @@ end
 fprintf('\nExperiment settings:\n')
 fprintf('aperture = %s\n', p.aperture)
 
-ok = input('\nSettings ok? [n if not]','s');
-if strcmp(ok,'n')
-    error('Ok, check parameters')
-end
+% ok = input('\nSettings ok? [n if not]','s');
+% if strcmp(ok,'n')
+%     error('Ok, check parameters')
+% end
 
 %% Eye data i/o
 eyeDataDir = 'eyedata';
@@ -76,7 +76,8 @@ if ~all([scr.width scr.height scr.hz] == [p.screenRes p.refRate]) && ~strcmp(sub
 end
 
 % Set up window
-[window, rect] = Screen('OpenWindow', screenNumber);
+multisample = 8;
+[window, rect] = Screen('OpenWindow', screenNumber,[],[],[],[],[],multisample);
 % [window, rect] = Screen('OpenWindow', screenNumber, [], [0 0 800 600]);
 white = WhiteIndex(window);  % Retrieves the CLUT color code for white.
 [cx, cy] = RectCenter(rect);
@@ -125,26 +126,19 @@ gratingRadius = round(p.gratingDiameter/2*ppd);
 edgeWidth = round(p.apertureEdgeWidth*ppd);
 
 % Make grating images and textures
-if p.rotateOnFly
-    gratingOrientations = 0;
-else
-    gratingOrientations = p.gratingOrientations;
-end
+orientation = 0;
 spatialFrequency = p.gratingSF;
 
-for iO = 1:numel(gratingOrientations)
-    orientation = gratingOrientations(iO);
-    for iP = 1:numel(p.gratingPhases)
-        phase = p.gratingPhases(iP);
-        for iC = 1:numel(p.gratingContrasts)
-            contrast = p.gratingContrasts(iC);
-            
-            grating = rd_grating(ppd, p.imSize(1), ...
-                spatialFrequency, orientation, phase, contrast);
-            
-            ims{iO,iP,iC} = rd_aperture(grating, p.aperture, gratingRadius, edgeWidth);
-            texs(iO,iP,iC) = Screen('MakeTexture', window, ims{iO,iP,iC}*white);
-        end
+for iP = 1:numel(p.gratingPhases)
+    phase = p.gratingPhases(iP);
+    for iC = 1:numel(p.gratingContrasts)
+        contrast = p.gratingContrasts(iC);
+        
+        grating = rd_grating(ppd, p.imSize(1), ...
+            spatialFrequency, orientation, phase, contrast);
+        
+        ims{iP,iC} = rd_aperture(grating, p.aperture, gratingRadius, edgeWidth);
+        texs(iP,iC) = Screen('MakeTexture', window, ims{iP,iC}*white);
     end
 end
 
@@ -153,6 +147,9 @@ imSize = size(grating);
 imRect = CenterRectOnPoint([0 0 imSize], cx+imPos(1), cy+imPos(2));
 phRect = imRect + [-1 -1 1 1]*p.phLineWidth;
 phRect = phRect + [-1 -1 1 1]*round(0.25*ppd); % expand placeholders by this many pixels so that they are not obscured by image rotations
+
+% Calculate fixation diameter in pixels
+fixSize = round(p.fixDiameter*ppd);
 
 %% Generate trials
 % Construct trials matrix
@@ -252,7 +249,7 @@ end
 % Show fixation and wait for a button press
 Screen('FillRect', window, p.backgroundColor*white);
 drawPlaceholders(window, white, p.backgroundColor*white, phRect, p.phLineWidth, p.showPlaceholders)
-DrawFormattedText(window, 'x', 'center', 'center', p.fixColor*white); %%% todo: change to dot
+drawFixation(window, cx, cy, fixSize, p.fixColor*white);
 Screen('Flip', window);
 KbWait(devNum);
 
@@ -266,7 +263,7 @@ block = 1;
 
 % Present initial fixation
 drawPlaceholders(window, white, p.backgroundColor*white, phRect, p.phLineWidth, p.showPlaceholders)
-DrawFormattedText(window, 'x', 'center', 'center', p.fixColor*white); 
+drawFixation(window, cx, cy, fixSize, p.fixColor*white);
 timeFix = Screen('Flip', window); 
 
 % Present trials
@@ -286,16 +283,13 @@ for iTrial = 1:nTrials
     targetState = p.targetStates(tsCond);
     
     % Select target textures
-    if p.rotateOnFly
-        tex = texs(1,phaseCond,contrastCond);
-    else
-        tex = texs(oriCond,phaseCond,contrastCond);
-    end
+    tex = texs(phaseCond,contrastCond);
     
     % Set fixation contrast based on staircase
     if p.staircase
         if targetState==1 % target present
-            fixColor = p.stairs(stairIdx);
+            fixColor = p.fixColor;
+            fixColor(1) = p.stairs(stairIdx);
         else
             fixColor = p.fixColor;
         end
@@ -305,12 +299,8 @@ for iTrial = 1:nTrials
     
     % Present image
     drawPlaceholders(window, white, p.backgroundColor*white, phRect, p.phLineWidth, p.showPlaceholders)
-    if p.rotateOnFly
-        Screen('DrawTexture', window, tex, [], imRect, orientation);
-    else
-        Screen('DrawTexture', window, tex, [], imRect);
-    end
-    DrawFormattedText(window, 'x', 'center', 'center', fixColor*white); % fixColor can change trial to trial
+    Screen('DrawTexture', window, tex, [], imRect, orientation);
+    drawFixation(window, cx, cy, fixSize, fixColor*white); % fixColor can change trial to trial
     timeIm = Screen('Flip', window, timeFix + iti - slack);
     if p.eyeTracking
         Eyelink('Message', 'EVENT_IMAGE');
@@ -319,7 +309,7 @@ for iTrial = 1:nTrials
     % Present fixation
     Screen('FillRect', window, white*p.backgroundColor);
     drawPlaceholders(window, white, p.backgroundColor*white, phRect, p.phLineWidth, p.showPlaceholders)
-    DrawFormattedText(window, 'x', 'center', 'center', p.fixColor*white);
+    drawFixation(window, cx, cy, fixSize, p.fixColor*white);
     timeFix = Screen('Flip', window, timeIm + p.gratingDur - slack);
     
     % Collect response
@@ -393,7 +383,7 @@ for iTrial = 1:nTrials
    
     % Store trial info
     trials(iTrial,iti2Idx) = iti; % the actual ITI, including extra delay
-    trials(iTrial,fixColorIdx) = fixColor;
+    trials(iTrial,fixColorIdx) = fixColor(1);
     trials(iTrial,responseKeyIdx) = responseKey;
     trials(iTrial,responseIdx) = response;
     trials(iTrial,correctIdx) = correct;
@@ -447,12 +437,13 @@ for iTrial = 1:nTrials
         
         % Present initial fixation
         drawPlaceholders(window, white, p.backgroundColor*white, phRect, p.phLineWidth, p.showPlaceholders)
-        DrawFormattedText(window, 'x', 'center', 'center', p.fixColor*white);
+        drawFixation(window, cx, cy, fixSize, p.fixColor*white);
         timeFix = Screen('Flip', window);
     end
 end
 timing.endTime = GetSecs;
 
+WaitSecs(1);
 DrawFormattedText(window, 'All done! Thanks for your effort!', 'center', 'center', [1 1 1]*white);
 Screen('Flip', window);
 WaitSecs(2);
@@ -472,9 +463,16 @@ if p.staircase
 end
 
 %% Calculate more timing things
-expt.timing.imDur = expt.timing.timeFix - expt.timing.timeIm;
+expt.timing.imDur = timing.timeFix - timing.timeIm;
+expt.timing.iti = diff(timing.timeIm);
 
 %% Analyze and save data
+save('data/TEMP')
+
+if plotTimingFigs
+    plotTiming(expt)
+end
+
 % [expt results] = rd_analyzeTemporalAttention(expt, saveData, saveFigs, plotTimingFigs, saveTimingFigs);
 
 %% Save eye data and shut down the eye tracker
