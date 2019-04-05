@@ -40,6 +40,7 @@ fprintf('aperture = %s\n', p.aperture)
 %% Eye data i/o
 eyeDataDir = 'eyedata';
 eyeFile = sprintf('%s%s', subjectID([1:2 end-1:end]), datestr(now, 'mmdd'));
+eyeFileFull = sprintf('%s/%s_%s_%s.edf', eyeDataDir, subjectID, expName, datestr(now, 'yyyymmdd'));
 
 % Check to see if this eye file already exists
 existingEyeFile = dir(sprintf('%s/%s.edf', eyeDataDir, eyeFile));
@@ -48,8 +49,9 @@ if ~isempty(existingEyeFile) && p.eyeTracking
 end
 
 %% Check for existing data file
-dataFile = sprintf('%s_%s_%s.mat', subjectID, expName, datestr(now, 'yyyymmdd'));
-existingDataFile = dir(sprintf('data/%s', dataFile));
+dataDir = 'data';
+dataFile = sprintf('%s/%s_%s_%s.mat', dataDir, subjectID, expName, datestr(now, 'yyyymmdd'));
+existingDataFile = dir(dataFile);
 if ~isempty(existingDataFile) && ~strcmp(subjectID, 'test') && ~strcmp(subjectID, 'testy')
     error('data file already exists!')
 end
@@ -254,6 +256,7 @@ Screen('Flip', window);
 KbWait(devNum);
 
 % Trials
+trialsPresented = [];
 lastFewAcc = [];
 stairIdx = numel(p.stairs); % start easy
 stairCounter = 1;
@@ -395,12 +398,12 @@ for iTrial = 1:nTrials
     timing.timeFix(iTrial,1) = timeFix;
     
     % Store presented trial info
-    trialsPresented.vals(iTrial).iti = iti;
-    trialsPresented.vals(iTrial).orientation = orientation;
-    trialsPresented.vals(iTrial).phase = phase;
-    trialsPresented.vals(iTrial).contrast = contrast;
-    trialsPresented.vals(iTrial).targetState = targetState;
-    trialsPresented.vals(iTrial).fixColor = fixColor;
+    trialsPresented(iTrial).iti = iti;
+    trialsPresented(iTrial).orientation = orientation;
+    trialsPresented(iTrial).phase = phase;
+    trialsPresented(iTrial).contrast = contrast;
+    trialsPresented(iTrial).targetState = targetState;
+    trialsPresented(iTrial).fixColor = fixColor(1);
    
     % Save the workspace on each trial
     save('data/TEMP') 
@@ -473,6 +476,10 @@ if plotTimingFigs
     plotTiming(expt)
 end
 
+if saveData
+    save(dataFile, 'expt')
+end
+
 % [expt results] = rd_analyzeTemporalAttention(expt, saveData, saveFigs, plotTimingFigs, saveTimingFigs);
 
 %% Save eye data and shut down the eye tracker
@@ -480,7 +487,6 @@ if p.eyeTracking
     rd_eyeLink('eyestop', window, {eyeFile, eyeDataDir});
     
     % rename eye file
-    eyeFileFull = sprintf('%s/%s_%s_%s.edf', eyeDataDir, subjectID, expName, datestr(now, 'yyyymmdd'));
     copyfile(sprintf('%s/%s.edf', eyeDataDir, eyeFile), eyeFileFull)
 end
 
