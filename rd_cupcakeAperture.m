@@ -107,14 +107,12 @@ end
 % Load calibration file
 switch p.testingLocation
     case 'CarrascoL1'
-%         load('../../Displays/0001_james_TrinitonG520_1280x960_57cm_Input1_140129.mat');
-%         Screen('LoadNormalizedGammaTable', window, repmat(calib.table,1,3));
         load('../../Displays/Carrasco_L1_SonyGDM5402_sRGB_calibration_02292016.mat');
         table = CLUT;
         Screen('LoadNormalizedGammaTable', window, table);
         % check gamma table
         gammatable = Screen('ReadNormalizedGammaTable', window);
-        if nnz(abs(gammatable-repmat(calib.table,1,3))>0.0001)
+        if nnz(abs(gammatable-table)>0.0001)
             error('Gamma table not loaded correctly! Perhaps set screen res and retry.')
         end
     otherwise
@@ -248,29 +246,40 @@ if p.eyeTracking
 end
 
 %% Present trials
-% Show fixation and wait for a button press
+% Show fixation
 Screen('FillRect', window, p.backgroundColor*white);
 drawPlaceholders(window, white, p.backgroundColor*white, phRect, p.phLineWidth, p.showPlaceholders)
 drawFixation(window, cx, cy, fixSize, p.fixColor*white);
 Screen('Flip', window);
+% Play example feedback tones
+for iTone = 1:size(p.tones,1)
+    PsychPortAudio('FillBuffer', pahandle, p.tones(iTone,:));
+    PsychPortAudio('Start', pahandle, [], [], 1); 
+    WaitSecs(.8)
+end
+% Wait for a button press
 KbWait(devNum);
 
 % Trials
 trialsPresented = [];
 lastFewAcc = [];
+stairValues = [];
+reversalValues = [];
+threshold = [];
 stairIdx = numel(p.stairs); % start easy
 stairCounter = 1;
-timing.startTime = GetSecs;
 extraITI = 0;
 block = 1;
 
 % Present initial fixation
 drawPlaceholders(window, white, p.backgroundColor*white, phRect, p.phLineWidth, p.showPlaceholders)
 drawFixation(window, cx, cy, fixSize, p.fixColor*white);
-timeFix = Screen('Flip', window); 
+timeFix = Screen('Flip', window); % first image will be presented after an ITI with respect to this time
+timing.startTime = timeFix; 
 
 % Present trials
 for iTrial = 1:nTrials
+    extraKeyPresses = [];
     
     % Get conditions for this trial
     oriCond = trials(iTrial, gratingOrientationIdx);
@@ -300,6 +309,16 @@ for iTrial = 1:nTrials
         fixColor = p.fixColor;
     end
     
+    % Check keyboard during ITI
+    while GetSecs < timeFix + iti - 3*slack
+        [keyIsDown, secs, keyCode] = KbCheck(devNum);
+        if keyIsDown
+            rtx = secs - timeFix; % measure from start of trial
+            key = find(keyCode);
+            extraKeyPresses = [extraKeyPresses; secs rtx key(1)];
+        end
+    end
+    
     % Present image
     drawPlaceholders(window, white, p.backgroundColor*white, phRect, p.phLineWidth, p.showPlaceholders)
     Screen('DrawTexture', window, tex, [], imRect, orientation);
@@ -307,6 +326,16 @@ for iTrial = 1:nTrials
     timeIm = Screen('Flip', window, timeFix + iti - slack);
     if p.eyeTracking
         Eyelink('Message', 'EVENT_IMAGE');
+    end
+    
+    % Check keyboard during image
+    while GetSecs < timeIm + p.gratingDur - 3*slack
+        [keyIsDown, secs, keyCode] = KbCheck(devNum);
+        if keyIsDown
+            rtx = secs - timeFix; % measure from start of trial
+            key = find(keyCode);
+            extraKeyPresses = [extraKeyPresses; secs rtx key(1)];
+        end
     end
     
     % Present fixation
@@ -317,7 +346,7 @@ for iTrial = 1:nTrials
     
     % Collect response
     responseKey = []; 
-    while isempty(responseKey) && GetSecs < timeFix + p.responseWindowDur 
+    while isempty(responseKey) && GetSecs < timeIm + p.responseWindowDur 
         [keyIsDown, secs, keyCode] = KbCheck(devNum);
         responseKey = find(p.keyCodes==find(keyCode)); % must press a valid key
         if numel(responseKey)>1 % if more than one key was pressed simultaneously
@@ -327,29 +356,33 @@ for iTrial = 1:nTrials
     if isempty(responseKey)
         response = 0; % absent
         responseKey = NaN;
+        timeResp = NaN;
         rt = NaN;
     else
         response = 1; % present
         timeResp = secs;
-        rt = timeResp - timeFix;
+        rt = timeResp - timeIm; % measured from image onset
     end
 
     % Feedback
     if response==targetState
         correct = 1;
         timeTone = NaN;
+        toneIdx = NaN;
     else
         correct = 0;
         if response==0 % miss
             toneIdx = find(strcmp(p.toneNames,'miss'));
+            toneRefTime = timeIm + p.responseWindowDur; % end of response window
         elseif response==1 % false alarm
             toneIdx = find(strcmp(p.toneNames,'fa'));
+            toneRefTime = timeResp;
         end
         feedbackTone = p.tones(toneIdx,:);
         
         % Present feedback tone
         PsychPortAudio('FillBuffer', pahandle, feedbackTone);
-        timeTone = PsychPortAudio('Start', pahandle, [], [], 1);
+        timeTone = PsychPortAudio('Start', pahandle, [], toneRefTime + p.toneOnsetSOA, 1); 
         if p.eyeTracking
             Eyelink('Message', 'EVENT_TONE');
         end
@@ -393,9 +426,10 @@ for iTrial = 1:nTrials
     trials(iTrial,rtIdx) = rt;
         
     % Store timing
+    timing.timeFix(iTrial,1) = timeFix;
     timing.timeIm(iTrial,1) = timeIm;
     timing.timeTone(iTrial,1) = timeTone;
-    timing.timeFix(iTrial,1) = timeFix;
+    timing.timeResp(iTrial,1) = timeResp;
     
     % Store presented trial info
     trialsPresented(iTrial).iti = iti;
@@ -404,9 +438,11 @@ for iTrial = 1:nTrials
     trialsPresented(iTrial).contrast = contrast;
     trialsPresented(iTrial).targetState = targetState;
     trialsPresented(iTrial).fixColor = fixColor(1);
+    trialsPresented(iTrial).toneIdx = toneIdx;
+    trialsPresented(iTrial).extraKeyPresses = extraKeyPresses;
    
     % Save the workspace on each trial
-    save('data/TEMP') 
+%     save('data/TEMP') %%% todo: save every block instead of every trial
     
     if mod(iTrial,p.nTrialsPerBlock)==0 || iTrial==nTrials       
         % Calculate block accuracy
@@ -451,6 +487,13 @@ DrawFormattedText(window, 'All done! Thanks for your effort!', 'center', 'center
 Screen('Flip', window);
 WaitSecs(2);
 
+%% Calculate more timing things
+timing.timeFix = [timing.startTime; timing.timeFix];
+timing.imDur = timing.timeFix(2:end) - timing.timeIm; % fix2 - im1
+timing.iti = timing.timeIm - timing.timeFix(1:end-1); % im1 - fix1, trial is iti then im
+timing.respToneSOA = timing.timeTone - timing.timeResp;
+timing.imToneSOA = timing.timeTone - timing.timeIm;
+
 %% Store expt info
 expt.subjectID = subjectID;
 expt.p = p;
@@ -465,19 +508,15 @@ if p.staircase
     expt.staircase.threshold = threshold;
 end
 
-%% Calculate more timing things
-expt.timing.imDur = timing.timeFix - timing.timeIm;
-expt.timing.iti = diff(timing.timeIm);
-
 %% Analyze and save data
 save('data/TEMP')
 
-if plotTimingFigs
-    plotTiming(expt)
-end
-
 if saveData
     save(dataFile, 'expt')
+end
+
+if plotTimingFigs
+    plotTiming(expt)
 end
 
 % [expt results] = rd_analyzeTemporalAttention(expt, saveData, saveFigs, plotTimingFigs, saveTimingFigs);
