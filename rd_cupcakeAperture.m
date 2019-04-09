@@ -182,9 +182,12 @@ nTrials = size(trials,1);
 fprintf('\n%s\n\n%d trials, %1.2f blocks\n\n', datestr(now), nTrials, nTrials/p.nTrialsPerBlock)
 
 % Generate ITIs
-nITIs = numel(p.itis);
-itis = repmat(p.itis,1,ceil(nTrials/nITIs));
-trials(:,itiIdx) = itis(randperm(nTrials));
+% % uniform distribution
+% nITIs = numel(p.itis);
+% itis = repmat(p.itis,1,ceil(nTrials/nITIs));
+% trials(:,itiIdx) = itis(randperm(nTrials));
+% constant hazard rate
+trials(:,itiIdx) = rd_sampleDiscretePDF(p.itiPDF, nTrials);
 
 % Generate target states
 tsConds = ones(1,nTrials)*2; % target absent

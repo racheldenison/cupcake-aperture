@@ -1,21 +1,27 @@
+% hazard_test.m
 
+%% generate distributions
+p = .2;
 
-p = .1;
+itis = 0.6:0.05:1.6;
+x = 0:numel(itis)-1;
 
-itis = 0.6:0.05:1;
-x = 0:numel(itis);
+f = p.*(1-p).^x; % pdf
 
-f = p.*(1-p).^x;
+S = (1-p).^x; % survival function
+F = 1-S; % cdf
+h = f./S; % hazard function
 
-S = (1-p).^x;
-F = 1-S;
+%% generate samples
+n = 50;
+samples = rd_sampleDiscretePDF(f, n);
+c = hist(samples,1:numel(f))/n;
 
-h = f./S;
-
-
-figure
+%% figure
+clf
 hold on
 plot(x, f);
-plot(x, F,'r');
-
+plot(x, F, 'r');
+plot(x, c, 'k');
+legend('pdf','cdf','pdf of samples','Location','best')
 

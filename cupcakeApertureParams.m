@@ -40,9 +40,12 @@ p.fixColor = 1; %[1; p.backgroundColor]; % [inner; outer]
 p.fixDiameter = .35; %[.35 .7]; % deg
 
 % Timing
-p.gratingDur = 0.05; 
-p.itis = 0.6:0.05:1; %%% todo: change to non-aging distribution
+p.itis = 0.6:0.05:1.6;
+p.hazardProb = 0.2; % at every time step, the probability of the event is 0.2
+p.itiPDF = p.hazardProb.*(1-p.hazardProb).^(0:numel(p.itis)-1); % f = p.*(1-p).^x;
 p.extraITI = 0.5; % insert after a button press or feedback tone
+
+p.gratingDur = 0.05; 
 p.toneDur = 0.2;
 p.responseWindowDur = 0.5;
 p.eyeSlack = 0.12; % cushion between last fixation check and next stimulus presentation
