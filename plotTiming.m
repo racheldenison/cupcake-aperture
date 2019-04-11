@@ -8,6 +8,8 @@ timing = expt.timing;
 itiRequested = trials(:,strcmp(trials_headers,'iti2'));
 itiActual = timing.iti;
 itiActual(itiActual > 2) = NaN; % between blocks
+allITIs = [itiRequested; itiActual];
+itiLims = [min(allITIs)*.9 max(allITIs)*1.1];
 
 missedTrials = trials(:,strcmp(trials_headers,'targetState'))==1 & trials(:,strcmp(trials_headers,'correct'))==0;
 
@@ -23,11 +25,13 @@ ylabel('Number of trials')
 
 subplot(1,nc,2)
 hold on
-plot([.5 1.5],[.5 1.5])
+plot(itiLims,itiLims)
 scatter(itiRequested, itiActual)
 xlabel('Requested ITI (s)')
 ylabel('Actual ITI (s)')
 axis square
+xlim(itiLims)
+ylim(itiLims)
 
 subplot(1,nc,3)
 hold on
@@ -57,6 +61,15 @@ for i = 1:numel(stairValues)
     vals(i) = p.stairs(stairValues(i));
 end
 
-figure
+figure('Position',[300 300 930 350])
+subplot(1,2,1)
 plot(vals)
+xlabel('trial')
+ylabel('luminance')
+title('staircase')
+subplot(1,2,2)
+semilogy(1-vals)
+ylim([10^-1.5 1])
+xlabel('trial')
+ylabel('1 - log(luminance)')
 

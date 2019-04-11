@@ -16,14 +16,14 @@ switch p.testingLocation
         p.screenSize = [40 30];
         p.screenRes = [1280 960];
         p.viewDist = 56;
-        p.eyeTracking = 0; 
+        p.eyeTracking = 1; 
     otherwise
         error('Testing location not found.')
 end
 
 p.keyCodes = KbName(p.keyNames);
 p.backgroundColor = 0.5;
-p.nReps = 2;
+p.nReps = 1;
 p.nTrialsPerBlock = 72;
 p.eyeRad = 1.5; % allowed fixation radius (degrees)   
 
@@ -34,15 +34,24 @@ p.fontSize = 24;
 % Placeholders
 p.showPlaceholders = 1;
 p.phLineWidth = 2; % (pixels)
+p.phCushion = 1; % degrees, expand ph by this amount relative to the image
 
 % Fixation
 p.fixColor = 1; %[1; p.backgroundColor]; % [inner; outer] 
 p.fixDiameter = .35; %[.35 .7]; % deg
 
 % Timing
-p.itis = 0.6:0.05:1.6;
-p.hazardProb = 0.2; % at every time step, the probability of the event is 0.2
-p.itiPDF = p.hazardProb.*(1-p.hazardProb).^(0:numel(p.itis)-1); % f = p.*(1-p).^x;
+p.itiType = 'hazard'; % 'uniform','hazard'
+switch p.itiType
+    case 'uniform'
+        p.itis = 0.6:0.05:1;
+    case 'hazard'
+        p.itis = 0.6:0.05:2;
+        p.hazardProb = 0.2; % at every time step, the probability of the event is 0.2
+        p.itiPDF = p.hazardProb.*(1-p.hazardProb).^(0:numel(p.itis)-1); % f = p.*(1-p).^x;
+    otherwise
+        error('p.itiType not recognized')
+end
 p.extraITI = 0.5; % insert after a button press or feedback tone
 
 p.gratingDur = 0.05; 
@@ -52,14 +61,14 @@ p.eyeSlack = 0.12; % cushion between last fixation check and next stimulus prese
 
 % Images
 p.imPos = [0 0];
-p.imSize = [16 16]; % this is the size of the image container that holds the stim
-p.gratingDiameter = [15 1]; % [outer inner] 
+p.imSize = [17 17]; % this is the size of the image container that holds the stim
+p.gratingDiameter = [16 1]; % [outer inner] 
 p.gratingSF = 1.5; % cpd
-p.gratingOrientations = 0:10:179; %0:20:179; 
+p.gratingOrientations = 0:20:179; %0:5:179; %0:20:179; 
 p.gratingPhases = [0 pi/2 pi 3*pi/2]; % eg. 0, or [0 pi/2 pi 3*pi/2]
 p.gratingContrasts = 1; 
-p.aperture = 'cosyne-ring';
-p.apertureEdgeWidth = 0.5;
+p.aperture = 'radial-sine-ring'; % 'cosyne-ring','radial-sine-ring'
+p.apertureEdgeWidth = 1; % half of a period, so sf of radial-sine aperture is 1/(2*width)
 if strfind(p.aperture,'radial')
     p.apertureSF = 1/(2*p.apertureEdgeWidth);
 end
@@ -70,7 +79,7 @@ p.propTargetPresent = .3;
 
 % Staircase
 p.staircase = 1;
-p.stairs = 1-logspace(-1,0,15); % hard (~1) to easy (0)
+p.stairs = 1-logspace(-1.5,0,15); % hard (~1) to easy (0)
 if p.staircase
     p.targetContrast = 0;
     fprintf('\nStaircase is ON\n')

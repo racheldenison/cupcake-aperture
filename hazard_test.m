@@ -3,7 +3,7 @@
 %% generate distributions
 p = .2;
 
-itis = 0.6:0.05:1.6;
+itis = 0.6:0.05:2;
 x = 0:numel(itis)-1;
 
 f = p.*(1-p).^x; % pdf
@@ -13,9 +13,17 @@ F = 1-S; % cdf
 h = f./S; % hazard function
 
 %% generate samples
-n = 50;
+n = 1000;
 samples = rd_sampleDiscretePDF(f, n);
 c = hist(samples,1:numel(f))/n;
+
+%% check samples
+s = samples;
+for i = 1:numel(itis)
+    isiti = s==i;
+    pITI(i) = mean(isiti);
+    s(isiti) = [];
+end
 
 %% figure
 clf
@@ -23,5 +31,7 @@ hold on
 plot(x, f);
 plot(x, F, 'r');
 plot(x, c, 'k');
-legend('pdf','cdf','pdf of samples','Location','best')
+plot(x, h, 'g');
+plot(x, pITI, '.--k')
+legend('pdf','cdf','pdf of samples','theoretical hazard','hazard of samples','Location','best')
 

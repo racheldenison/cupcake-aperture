@@ -1,4 +1,4 @@
-function results = rd_cupcakeAperture(subjectID)
+function expt = rd_cupcakeAperture(subjectID, run)
 
 %% Setup
 if nargin==0
@@ -40,7 +40,7 @@ fprintf('aperture = %s\n', p.aperture)
 %% Eye data i/o
 eyeDataDir = 'eyedata';
 eyeFile = sprintf('%s%s', subjectID([1:2 end-1:end]), datestr(now, 'mmdd'));
-eyeFileFull = sprintf('%s/%s_%s_%s.edf', eyeDataDir, subjectID, expName, datestr(now, 'yyyymmdd'));
+eyeFileFull = sprintf('%s/%s_run%02d_%s_%s.edf', eyeDataDir, subjectID, run, expName, datestr(now, 'yyyymmdd'));
 
 % Check to see if this eye file already exists
 existingEyeFile = dir(sprintf('%s/%s.edf', eyeDataDir, eyeFile));
@@ -50,7 +50,7 @@ end
 
 %% Check for existing data file
 dataDir = 'data';
-dataFile = sprintf('%s/%s_%s_%s.mat', dataDir, subjectID, expName, datestr(now, 'yyyymmdd'));
+dataFile = sprintf('%s/%s_run%02d_%s_%s.mat', dataDir, subjectID, run, expName, datestr(now, 'yyyymmdd'));
 existingDataFile = dir(dataFile);
 if ~isempty(existingDataFile) && ~strcmp(subjectID, 'test') && ~strcmp(subjectID, 'testy')
     error('data file already exists!')
@@ -119,6 +119,30 @@ switch p.testingLocation
         fprintf('\nNot loading gamma table ...\n')
 end
 
+%% Load previous staircase value
+prevDataFile = sprintf('%s/%s_run*_%s_*.mat', dataDir, subjectID, expName);
+prevDataFiles = dir(prevDataFile);
+
+if ~isempty(prevDataFiles)
+    % find most recent file
+    datenums = [];
+    for i = 1:numel(prevDataFiles)
+        datenums(i) = prevDataFiles(i).datenum;
+    end
+    [y, idx] = max(datenums);
+    
+    stairFileName = prevDataFiles(idx).name;
+    stairFile = load(sprintf('%s/%s', dataDir, stairFileName));
+    stairIdx = stairFile.expt.staircase.stairValues(end); % pick up where we left off
+    
+    fprintf('\nStaircase start at %1.2f, from file %s\n\n', p.stairs(stairIdx), stairFileName);
+    clear stairFile
+else
+    stairIdx = numel(p.stairs); % start easy
+    fprintf('\nStaircase start at %1.2f\n\n', p.stairs(stairIdx));
+end
+
+
 %% Make stimuli
 % Calculate stimulus dimensions (px) and position
 imPos = round(p.imPos*ppd);
@@ -146,7 +170,7 @@ end
 imSize = size(grating);
 imRect = CenterRectOnPoint([0 0 imSize], cx+imPos(1), cy+imPos(2));
 phRect = imRect + [-1 -1 1 1]*p.phLineWidth;
-phRect = phRect + [-1 -1 1 1]*round(0.25*ppd); % expand placeholders by this many pixels so that they are not obscured by image rotations
+phRect = phRect + [-1 -1 1 1]*round(p.phCushion*ppd); % expand placeholders by this many pixels so that they are not obscured by image rotations
 
 % Calculate fixation diameter in pixels
 fixSize = round(p.fixDiameter*ppd);
@@ -182,12 +206,16 @@ nTrials = size(trials,1);
 fprintf('\n%s\n\n%d trials, %1.2f blocks\n\n', datestr(now), nTrials, nTrials/p.nTrialsPerBlock)
 
 % Generate ITIs
-% % uniform distribution
-% nITIs = numel(p.itis);
-% itis = repmat(p.itis,1,ceil(nTrials/nITIs));
-% trials(:,itiIdx) = itis(randperm(nTrials));
-% constant hazard rate
-trials(:,itiIdx) = rd_sampleDiscretePDF(p.itiPDF, nTrials);
+switch p.itiType
+    case 'uniform'
+        nITIs = numel(p.itis);
+        itis = repmat(1:nITIs,1,ceil(nTrials/nITIs));
+        trials(:,itiIdx) = itis(randperm(nTrials));
+    case 'hazard' % constant hazard rate
+        trials(:,itiIdx) = rd_sampleDiscretePDF(p.itiPDF, nTrials);
+    otherwise
+        error('p.itiType not recognized')
+end
 
 % Generate target states
 tsConds = ones(1,nTrials)*2; % target absent
@@ -228,9 +256,6 @@ if p.eyeTracking
     Eyelink('message', 'END DESCRIPTIONS');
     
     % No sounds indicating success of calibration
-%     el.targetbeep = false;
-%     el.calibration_failed_beep = [0 0 0];
-%     el.calibration_success_beep = [0 0 0];
     el.drift_correction_target_beep = [0 0 0];
     el.drift_correction_failed_beep = [0 0 0];
     el.drift_correction_success_beep = [0 0 0];
@@ -269,33 +294,39 @@ lastFewAcc = [];
 stairValues = [];
 reversalValues = [];
 threshold = [];
-stairIdx = numel(p.stairs); % start easy
-stairCounter = 1;
 extraITI = 0;
 block = 1;
+stairCounter = 1;
 
 % Present initial fixation
 drawPlaceholders(window, white, p.backgroundColor*white, phRect, p.phLineWidth, p.showPlaceholders)
 drawFixation(window, cx, cy, fixSize, p.fixColor*white);
 timeFix = Screen('Flip', window); % first image will be presented after an ITI with respect to this time
 timing.startTime = timeFix; 
+if p.eyeTracking
+    Eyelink('Message', 'EVENT_FIX');
+end
 
 % Present trials
 for iTrial = 1:nTrials
     extraKeyPresses = [];
+    if p.eyeTracking
+        Eyelink('Message', 'TRIAL_START');
+    end
     
     % Get conditions for this trial
     oriCond = trials(iTrial, gratingOrientationIdx);
     phaseCond = trials(iTrial, gratingPhaseIdx);
     contrastCond = trials(iTrial, gratingContrastIdx);
     tsCond = trials(iTrial, targetStateIdx);
-    iti = trials(iTrial, itiIdx) + extraITI;
+    itiCond = trials(iTrial, itiIdx);
     
     % Get actual values
     orientation = p.gratingOrientations(oriCond);
     phase = p.gratingPhases(phaseCond);
     contrast = p.gratingContrasts(contrastCond);
     targetState = p.targetStates(tsCond);
+    iti = p.itis(itiCond) + extraITI;
     
     % Select target textures
     tex = texs(phaseCond,contrastCond);
@@ -346,6 +377,9 @@ for iTrial = 1:nTrials
     drawPlaceholders(window, white, p.backgroundColor*white, phRect, p.phLineWidth, p.showPlaceholders)
     drawFixation(window, cx, cy, fixSize, p.fixColor*white);
     timeFix = Screen('Flip', window, timeIm + p.gratingDur - slack);
+    if p.eyeTracking
+        Eyelink('Message', 'EVENT_FIX');
+    end
     
     % Collect response
     responseKey = []; 
@@ -365,6 +399,9 @@ for iTrial = 1:nTrials
         response = 1; % present
         timeResp = secs;
         rt = timeResp - timeIm; % measured from image onset
+        if p.eyeTracking
+            Eyelink('Message', 'EVENT_RESPONSE');
+        end
     end
 
     % Feedback
@@ -443,11 +480,11 @@ for iTrial = 1:nTrials
     trialsPresented(iTrial).fixColor = fixColor(1);
     trialsPresented(iTrial).toneIdx = toneIdx;
     trialsPresented(iTrial).extraKeyPresses = extraKeyPresses;
-   
-    % Save the workspace on each trial
-%     save('data/TEMP') %%% todo: save every block instead of every trial
     
-    if mod(iTrial,p.nTrialsPerBlock)==0 || iTrial==nTrials       
+    if mod(iTrial,p.nTrialsPerBlock)==0 || iTrial==nTrials    
+        % Save the workspace every block
+        save('data/TEMP')
+
         % Calculate block accuracy
         blockStartTrial = (iTrial/p.nTrialsPerBlock)*p.nTrialsPerBlock - p.nTrialsPerBlock + 1;
         if blockStartTrial < 0 % we are doing less than one block
@@ -477,15 +514,17 @@ for iTrial = 1:nTrials
         
         block = block+1; % keep track of block for block message only
         
-        % Present initial fixation
-        drawPlaceholders(window, white, p.backgroundColor*white, phRect, p.phLineWidth, p.showPlaceholders)
-        drawFixation(window, cx, cy, fixSize, p.fixColor*white);
-        timeFix = Screen('Flip', window);
+        if iTrial<nTrials
+            % Present initial fixation
+            drawPlaceholders(window, white, p.backgroundColor*white, phRect, p.phLineWidth, p.showPlaceholders)
+            drawFixation(window, cx, cy, fixSize, p.fixColor*white);
+            timeFix = Screen('Flip', window);
+        end
     end
 end
 timing.endTime = GetSecs;
 
-WaitSecs(1);
+WaitSecs(2);
 DrawFormattedText(window, 'All done! Thanks for your effort!', 'center', 'center', [1 1 1]*white);
 Screen('Flip', window);
 WaitSecs(2);
