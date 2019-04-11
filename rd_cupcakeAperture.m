@@ -8,9 +8,10 @@ end
 expName = 'CupcakeAperture';
 
 saveData = 1;
-saveFigs = 1;
 plotTimingFigs = 1;
-saveTimingFigs = 1;
+saveTimingFigs = 0;
+plotStaircaseFigs = 1;
+saveStaircaseFigs = 0;
 
 p = cupcakeApertureParams;
     
@@ -26,6 +27,23 @@ AssertOpenGL;
 
 if strcmp(p.testingLocation, 'desk')
     Screen('Preference', 'SkipSyncTests', 1);
+end
+
+if strfind(p.testingLocation, 'MEG')
+    useKbQueue = 1;
+    p.soundAmp = 0.10; % 0.10 for MEG
+    p.triggersOn = 1;
+else
+    useKbQueue = 0;
+    p.soundAmp = 1;
+    p.triggersOn = 0;
+end
+
+%% Initialize stim tracker for MEG
+if p.triggersOn
+    PTBInitStimTracker;
+    global PTBTriggerLength
+    PTBTriggerLength = 0.001;
 end
 
 %% Display key settings to the experimenter
@@ -57,7 +75,28 @@ if ~isempty(existingDataFile) && ~strcmp(subjectID, 'test') && ~strcmp(subjectID
 end
 
 %% Keyboard
-devNum = -1;
+% set button box device
+if useKbQueue
+    devNum = [];
+    devices = PsychHID('devices');
+    for iD=1:numel(devices)
+        if strcmp(devices(iD).usageName,'Keyboard') && ...
+                strcmp(devices(iD).product,'904')
+            devNum = iD;
+        end
+    end
+    if isempty(devNum)
+        error('Did not find button box')
+    end
+else
+    devNum = -1;
+end
+
+% set up KbQueue if desired
+if useKbQueue
+    KbQueueCreate(devNum);
+    KbQueueStart();
+end
 
 %% Sound
 % Perform basic initialization of the sound driver
@@ -115,6 +154,8 @@ switch p.testingLocation
         if nnz(abs(gammatable-table)>0.0001)
             error('Gamma table not loaded correctly! Perhaps set screen res and retry.')
         end
+    case 'MEG'
+        %%% todo
     otherwise
         fprintf('\nNot loading gamma table ...\n')
 end
@@ -271,6 +312,9 @@ if p.eyeTracking
     if exitFlag
         return
     end
+    
+    % Start recording
+    rd_eyeLink('startrecording');
 end
 
 %% Present trials
@@ -281,7 +325,7 @@ drawFixation(window, cx, cy, fixSize, p.fixColor*white);
 Screen('Flip', window);
 % Play example feedback tones
 for iTone = 1:size(p.tones,1)
-    PsychPortAudio('FillBuffer', pahandle, p.tones(iTone,:));
+    PsychPortAudio('FillBuffer', pahandle, p.tones(iTone,:)*p.soundAmp);
     PsychPortAudio('Start', pahandle, [], [], 1); 
     WaitSecs(.8)
 end
@@ -305,6 +349,11 @@ timeFix = Screen('Flip', window); % first image will be presented after an ITI w
 timing.startTime = timeFix; 
 if p.eyeTracking
     Eyelink('Message', 'EVENT_FIX');
+end
+if p.triggersOn
+    PTBSendTrigger(p.triggers.fixation, 0); %%% todo
+    % fprintf('Trigger %d\n', stimulus.trigSeq(frame)); drawnow
+%     response.trig(frame) = stimulus.trigSeq(frame);
 end
 
 % Present trials
@@ -345,7 +394,15 @@ for iTrial = 1:nTrials
     
     % Check keyboard during ITI
     while GetSecs < timeFix + iti - 3*slack
-        [keyIsDown, secs, keyCode] = KbCheck(devNum);
+        if useKbQueue %%% todo: check and then repeat for every KbCheck
+            [keyIsDown, firstPress] = KbQueueCheck();
+            if keyIsDown
+                secs = min(firstPress(firstPress~=0)); % check
+                keyCode = firstPress==secs; % check
+            end
+        else
+            [keyIsDown, secs, keyCode] = KbCheck(devNum);
+        end
         if keyIsDown
             rtx = secs - timeFix; % measure from start of trial
             key = find(keyCode);
@@ -421,7 +478,7 @@ for iTrial = 1:nTrials
         feedbackTone = p.tones(toneIdx,:);
         
         % Present feedback tone
-        PsychPortAudio('FillBuffer', pahandle, feedbackTone);
+        PsychPortAudio('FillBuffer', pahandle, feedbackTone*p.soundAmp);
         timeTone = PsychPortAudio('Start', pahandle, [], toneRefTime + p.toneOnsetSOA, 1); 
         if p.eyeTracking
             Eyelink('Message', 'EVENT_TONE');
@@ -538,6 +595,7 @@ timing.imToneSOA = timing.timeTone - timing.timeIm;
 
 %% Store expt info
 expt.subjectID = subjectID;
+expt.run = run;
 expt.p = p;
 expt.timing = timing;
 expt.trials_headers = trials_headers;
@@ -558,10 +616,12 @@ if saveData
 end
 
 if plotTimingFigs
-    plotTiming(expt)
+    plotTiming(expt, saveTimingFigs)
 end
 
-% [expt results] = rd_analyzeTemporalAttention(expt, saveData, saveFigs, plotTimingFigs, saveTimingFigs);
+if plotStaircaseFigs
+    plotStaircase(expt, saveStaircaseFigs)
+end
 
 %% Save eye data and shut down the eye tracker
 if p.eyeTracking

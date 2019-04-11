@@ -1,4 +1,7 @@
-function plotTiming(expt)
+function plotTiming(expt, saveFigs)
+
+subjectID = expt.subjectID;
+run = expt.run;
 
 p = expt.p;
 trials_headers = expt.trials_headers;
@@ -54,22 +57,8 @@ vline(p.responseWindowDur + p.toneOnsetSOA,'r')
 xlabel('Image-tone ITI, misses (s)')
 ylabel('Number of trials')
 
-
-% staircase
-stairValues = expt.staircase.stairValues;
-for i = 1:numel(stairValues)
-    vals(i) = p.stairs(stairValues(i));
+if saveFigs
+    rd_saveAllFigs(gcf, {'timing'}, sprintf('%s_run%02d', subjectID, run))
 end
 
-figure('Position',[300 300 930 350])
-subplot(1,2,1)
-plot(vals)
-xlabel('trial')
-ylabel('luminance')
-title('staircase')
-subplot(1,2,2)
-semilogy(1-vals)
-ylim([10^-1.5 1])
-xlabel('trial')
-ylabel('1 - log(luminance)')
 
