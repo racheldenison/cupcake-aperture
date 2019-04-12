@@ -16,7 +16,7 @@ switch p.testingLocation
         p.screenSize = [40 30];
         p.screenRes = [1280 960];
         p.viewDist = 56;
-        p.eyeTracking = 1; 
+        p.eyeTracking = 0; 
     otherwise
         error('Testing location not found.')
 end
@@ -25,7 +25,7 @@ p.keyCodes = KbName(p.keyNames);
 p.backgroundColor = 0.5;
 p.nReps = 1;
 p.nTrialsPerBlock = 72;
-p.eyeRad = 1.5; % allowed fixation radius (degrees)   
+% p.eyeRad = 1.5; % allowed fixation radius (degrees)   
 
 % Text
 p.font = 'Verdana';
@@ -75,7 +75,7 @@ end
 
 % Task
 p.targetStates = [1 0]; % 1=present, 0=absent
-p.propTargetPresent = .3;
+p.propTargetPresent = .2;
 
 % Staircase
 p.staircase = 1;

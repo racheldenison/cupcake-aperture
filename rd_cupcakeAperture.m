@@ -9,9 +9,9 @@ expName = 'CupcakeAperture';
 
 saveData = 1;
 plotTimingFigs = 1;
-saveTimingFigs = 0;
+saveTimingFigs = 1;
 plotStaircaseFigs = 1;
-saveStaircaseFigs = 0;
+saveStaircaseFigs = 1;
 
 p = cupcakeApertureParams;
     
@@ -57,7 +57,7 @@ fprintf('aperture = %s\n', p.aperture)
 
 %% Eye data i/o
 eyeDataDir = 'eyedata';
-eyeFile = sprintf('%s%s', subjectID([1:2 end-1:end]), datestr(now, 'mmdd'));
+eyeFile = sprintf('%s%02d%s', subjectID(1:2), run, datestr(now, 'mmdd'));
 eyeFileFull = sprintf('%s/%s_run%02d_%s_%s.edf', eyeDataDir, subjectID, run, expName, datestr(now, 'yyyymmdd'));
 
 % Check to see if this eye file already exists
@@ -294,6 +294,7 @@ if p.eyeTracking
     % Write subject ID into the edf file
     Eyelink('message', 'BEGIN DESCRIPTIONS');
     Eyelink('message', 'Subject code: %s', subjectID);
+    Eyelink('message', 'Run: %d', run);
     Eyelink('message', 'END DESCRIPTIONS');
     
     % No sounds indicating success of calibration
@@ -314,7 +315,7 @@ if p.eyeTracking
     end
     
     % Start recording
-    rd_eyeLink('startrecording');
+    rd_eyeLink('startrecording', window, el);
 end
 
 %% Present trials
