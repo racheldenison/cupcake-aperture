@@ -5,6 +5,8 @@ if nargin==0
     subjectID = 'test';
 end
 
+addpath('../PTBWrapper/') %%% come back
+
 expName = 'CupcakeAperture';
 
 saveData = 1;
@@ -44,6 +46,14 @@ if p.triggersOn
     PTBInitStimTracker;
     global PTBTriggerLength
     PTBTriggerLength = 0.001;
+    
+    % to send trigger messages to EyeLink
+    global PTBEyeTrackerRecording 
+    if p.eyeTracking
+        PTBEyeTrackerRecording = 1;
+    else
+        PTBEyeTrackerRecording = 0;
+    end
 end
 
 %% Display key settings to the experimenter
@@ -339,6 +349,7 @@ lastFewAcc = [];
 stairValues = [];
 reversalValues = [];
 threshold = [];
+triggerTimes = [];
 extraITI = 0;
 block = 1;
 stairCounter = 1;
@@ -348,13 +359,13 @@ drawPlaceholders(window, white, p.backgroundColor*white, phRect, p.phLineWidth, 
 drawFixation(window, cx, cy, fixSize, p.fixColor*white);
 timeFix = Screen('Flip', window); % first image will be presented after an ITI with respect to this time
 timing.startTime = timeFix; 
-if p.eyeTracking
-    Eyelink('Message', 'EVENT_FIX');
-end
 if p.triggersOn
     PTBSendTrigger(p.triggers.fixation, 0); %%% todo
-    % fprintf('Trigger %d\n', stimulus.trigSeq(frame)); drawnow
-%     response.trig(frame) = stimulus.trigSeq(frame);
+    % fprintf('Trigger %d\n', p.triggers.fixation); drawnow
+    triggerTimes = [triggerTimes; p.triggers.fixation GetSecs];
+end
+if p.eyeTracking
+    Eyelink('Message', 'EVENT_FIX');
 end
 
 % Present trials
@@ -416,6 +427,11 @@ for iTrial = 1:nTrials
     Screen('DrawTexture', window, tex, [], imRect, orientation);
     drawFixation(window, cx, cy, fixSize, fixColor*white); % fixColor can change trial to trial
     timeIm = Screen('Flip', window, timeFix + iti - slack);
+    if p.triggersOn
+        PTBSendTrigger(p.triggers.image, 0);
+        % fprintf('Trigger %d\n', p.triggers.image); drawnow
+        triggerTimes = [triggerTimes; p.triggers.image GetSecs];
+    end
     if p.eyeTracking
         Eyelink('Message', 'EVENT_IMAGE');
     end
@@ -435,6 +451,11 @@ for iTrial = 1:nTrials
     drawPlaceholders(window, white, p.backgroundColor*white, phRect, p.phLineWidth, p.showPlaceholders)
     drawFixation(window, cx, cy, fixSize, p.fixColor*white);
     timeFix = Screen('Flip', window, timeIm + p.gratingDur - slack);
+    if p.triggersOn
+        PTBSendTrigger(p.triggers.fixation, 0);
+        % fprintf('Trigger %d\n', p.triggers.fixation); drawnow
+        triggerTimes = [triggerTimes; p.triggers.fixation GetSecs];
+    end
     if p.eyeTracking
         Eyelink('Message', 'EVENT_FIX');
     end
@@ -481,6 +502,11 @@ for iTrial = 1:nTrials
         % Present feedback tone
         PsychPortAudio('FillBuffer', pahandle, feedbackTone*p.soundAmp);
         timeTone = PsychPortAudio('Start', pahandle, [], toneRefTime + p.toneOnsetSOA, 1); 
+        if p.triggersOn
+            PTBSendTrigger(p.triggers.tone, 0);
+            % fprintf('Trigger %d\n', p.triggers.tone); drawnow
+            triggerTimes = [triggerTimes; p.triggers.tone GetSecs];
+        end
         if p.eyeTracking
             Eyelink('Message', 'EVENT_TONE');
         end
@@ -588,6 +614,7 @@ Screen('Flip', window);
 WaitSecs(2);
 
 %% Calculate more timing things
+timing.triggers = triggerTimes;
 timing.timeFix = [timing.startTime; timing.timeFix];
 timing.imDur = timing.timeFix(2:end) - timing.timeIm; % fix2 - im1
 timing.iti = timing.timeIm - timing.timeFix(1:end-1); % im1 - fix1, trial is iti then im

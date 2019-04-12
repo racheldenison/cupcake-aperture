@@ -96,3 +96,9 @@ end
 p.toneOnsetSOA = 0.01; % 10 ms
 % 10^0.5 for every 10dB
 
+% MEG triggers
+p.triggers.fixation = 1;
+p.triggers.image = 2;
+p.triggers.tone = 4;
+p.triggers.response = 8;
+
