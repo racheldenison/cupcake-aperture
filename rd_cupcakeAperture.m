@@ -3,6 +3,7 @@ function expt = rd_cupcakeAperture(subjectID, run)
 %% Setup
 if nargin==0
     subjectID = 'test';
+    run = 1;
 end
 
 addpath('../PTBWrapper/') %%% come back
@@ -11,9 +12,9 @@ expName = 'CupcakeAperture';
 
 saveData = 1;
 plotTimingFigs = 1;
-saveTimingFigs = 1;
+saveTimingFigs = 0;
 plotStaircaseFigs = 1;
-saveStaircaseFigs = 1;
+saveStaircaseFigs = 0;
 
 p = cupcakeApertureParams;
     
@@ -21,7 +22,7 @@ if strcmp(subjectID,'test')
     p.eyeTracking = 0;
 end
 
-slack = (1/p.refRate)/2;
+slack = (1/p.refRate)*.9; 
 ppd = ang2pix(1, p.screenSize(1), p.screenRes(1), p.viewDist, 'central'); % pixels per degree
 
 % Running on PTB-3? Abort otherwise.
@@ -29,16 +30,6 @@ AssertOpenGL;
 
 if strcmp(p.testingLocation, 'desk')
     Screen('Preference', 'SkipSyncTests', 1);
-end
-
-if strfind(p.testingLocation, 'MEG')
-    useKbQueue = 1;
-    p.soundAmp = 0.10; % 0.10 for MEG
-    p.triggersOn = 1;
-else
-    useKbQueue = 0;
-    p.soundAmp = 1;
-    p.triggersOn = 0;
 end
 
 %% Initialize stim tracker for MEG
@@ -86,7 +77,7 @@ end
 
 %% Keyboard
 % set button box device
-if useKbQueue
+if p.useKbQueue
     devNum = [];
     devices = PsychHID('devices');
     for iD=1:numel(devices)
@@ -103,7 +94,7 @@ else
 end
 
 % set up KbQueue if desired
-if useKbQueue
+if p.useKbQueue
     KbQueueCreate(devNum);
     KbQueueStart();
 end
@@ -165,7 +156,14 @@ switch p.testingLocation
             error('Gamma table not loaded correctly! Perhaps set screen res and retry.')
         end
     case 'MEG'
-        %%% todo
+        d = load(sprintf('%s/gamma.mat', p.displayPath));
+        table = d.gamma;
+        Screen('LoadNormalizedGammaTable', window, table);
+        % check gamma table
+        gammatable = Screen('ReadNormalizedGammaTable', window);
+        if nnz(abs(gammatable-table)>0.0001)
+            error('Gamma table not loaded correctly! Perhaps set screen res and retry.')
+        end     
     otherwise
         fprintf('\nNot loading gamma table ...\n')
 end
@@ -341,7 +339,11 @@ for iTone = 1:size(p.tones,1)
     WaitSecs(.8)
 end
 % Wait for a button press
-KbWait(devNum);
+if p.useKbQueue
+    KbQueueWait(devNum);
+else
+    KbWait(devNum);
+end
 
 % Trials
 trialsPresented = [];
@@ -406,11 +408,13 @@ for iTrial = 1:nTrials
     
     % Check keyboard during ITI
     while GetSecs < timeFix + iti - 3*slack
-        if useKbQueue %%% todo: check and then repeat for every KbCheck
+        if p.useKbQueue
             [keyIsDown, firstPress] = KbQueueCheck();
             if keyIsDown
-                secs = min(firstPress(firstPress~=0)); % check
-                keyCode = firstPress==secs; % check
+                secs = min(firstPress(firstPress~=0));
+                keyCode = firstPress==secs;
+            else
+                keyCode = [];
             end
         else
             [keyIsDown, secs, keyCode] = KbCheck(devNum);
@@ -438,7 +442,17 @@ for iTrial = 1:nTrials
     
     % Check keyboard during image
     while GetSecs < timeIm + p.gratingDur - 3*slack
-        [keyIsDown, secs, keyCode] = KbCheck(devNum);
+        if p.useKbQueue
+            [keyIsDown, firstPress] = KbQueueCheck();
+            if keyIsDown
+                secs = min(firstPress(firstPress~=0));
+                keyCode = firstPress==secs;
+            else
+                keyCode = [];
+            end
+        else
+            [keyIsDown, secs, keyCode] = KbCheck(devNum);
+        end
         if keyIsDown
             rtx = secs - timeFix; % measure from start of trial
             key = find(keyCode);
@@ -463,7 +477,17 @@ for iTrial = 1:nTrials
     % Collect response
     responseKey = []; 
     while isempty(responseKey) && GetSecs < timeIm + p.responseWindowDur 
-        [keyIsDown, secs, keyCode] = KbCheck(devNum);
+        if p.useKbQueue
+            [keyIsDown, firstPress] = KbQueueCheck();
+            if keyIsDown
+                secs = min(firstPress(firstPress~=0));
+                keyCode = firstPress==secs;
+            else
+                keyCode = [];
+            end
+        else
+            [keyIsDown, secs, keyCode] = KbCheck(devNum);
+        end
         responseKey = find(p.keyCodes==find(keyCode)); % must press a valid key
         if numel(responseKey)>1 % if more than one key was pressed simultaneously
             responseKey = 1;
@@ -629,6 +653,7 @@ expt.timing = timing;
 expt.trials_headers = trials_headers;
 expt.trials = trials;
 expt.trialsPresented = trialsPresented;
+expt.whenSaved = datestr(now);
 
 if p.staircase
     expt.staircase.stairValues = stairValues;

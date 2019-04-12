@@ -1,6 +1,6 @@
 function p = cupcakeApertureParams
 
-p.testingLocation = 'CarrascoL1'; % 'CarrascoL1','desk'
+p.testingLocation = 'MEG'; % 'CarrascoL1','desk'
 
 switch p.testingLocation
     case {'desk'}
@@ -10,6 +10,9 @@ switch p.testingLocation
         p.screenRes = [1280 1024];
         p.viewDist = 36; % (in)
         p.eyeTracking = 0;
+        p.useKbQueue = 0;
+        p.soundAmp = 1;
+        p.triggersOn = 0;
     case 'CarrascoL1'
         p.keyNames = {'1!'};
         p.refRate = 60;
@@ -17,6 +20,20 @@ switch p.testingLocation
         p.screenRes = [1280 960];
         p.viewDist = 56;
         p.eyeTracking = 0; 
+        p.useKbQueue = 0;
+        p.soundAmp = 1;
+        p.triggersOn = 0;
+    case 'MEG'
+        p.keyNames = {'1!'};
+        p.refRate = 60;
+        p.screenSize = [23.8 16.4]; % cm
+        p.screenRes = [1024 768];
+        p.viewDist = 42; % cm
+        p.eyeTracking = 0;
+        p.useKbQueue = 1;
+        p.soundAmp = 0.10;
+        p.triggersOn = 1;
+        p.displayPath = '/Users/megadmin/Desktop/Experiments/Rachel/vistadisp/exptTools2/displays/meg_lcd_20180420_brightness-32';
     otherwise
         error('Testing location not found.')
 end
@@ -93,7 +110,7 @@ for iTone = 1:numel(p.toneFreqs)
     tone = MakeBeep(p.toneFreqs(iTone), p.toneDur, p.Fs);
     p.tones(iTone,:) = applyEnvelope(tone, p.Fs);
 end
-p.toneOnsetSOA = 0.01; % 10 ms
+p.toneOnsetSOA = 0.02; % 20 ms
 % 10^0.5 for every 10dB
 
 % MEG triggers
