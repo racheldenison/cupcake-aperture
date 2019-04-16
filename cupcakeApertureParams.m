@@ -3,26 +3,26 @@ function p = cupcakeApertureParams
 p.testingLocation = 'MEG'; % 'CarrascoL1','desk'
 
 switch p.testingLocation
-    case {'desk'}
-        p.keyNames = {'1!'};
-        p.refRate = 60;
-        p.screenSize = [13 9]; % (in)
-        p.screenRes = [1280 1024];
-        p.viewDist = 36; % (in)
-        p.eyeTracking = 0;
-        p.useKbQueue = 0;
-        p.soundAmp = 1;
-        p.triggersOn = 0;
-    case 'CarrascoL1'
-        p.keyNames = {'1!'};
-        p.refRate = 60;
-        p.screenSize = [40 30];
-        p.screenRes = [1280 960];
-        p.viewDist = 56;
-        p.eyeTracking = 0; 
-        p.useKbQueue = 0;
-        p.soundAmp = 1;
-        p.triggersOn = 0;
+%     case {'desk'}
+%         p.keyNames = {'1!'};
+%         p.refRate = 60;
+%         p.screenSize = [13 9]; % (in)
+%         p.screenRes = [1280 1024];
+%         p.viewDist = 36; % (in)
+%         p.eyeTracking = 0;
+%         p.useKbQueue = 0;
+%         p.soundAmp = 1;
+%         p.triggersOn = 0;
+%     case 'CarrascoL1'
+%         p.keyNames = {'1!'};
+%         p.refRate = 60;
+%         p.screenSize = [40 30];
+%         p.screenRes = [1280 960];
+%         p.viewDist = 56;
+%         p.eyeTracking = 0; 
+%         p.useKbQueue = 0;
+%         p.soundAmp = 1;
+%         p.triggersOn = 0;
     case 'MEG'
         p.keyNames = {'1!'};
         p.refRate = 60;
@@ -30,8 +30,8 @@ switch p.testingLocation
         p.screenRes = [1024 768];
         p.viewDist = 42; % cm
         p.eyeTracking = 1;
-        p.useKbQueue = 0;
-        p.soundAmp = 1;
+        p.useKbQueue = 1;
+        p.soundAmp = 0.1;
         p.triggersOn = 1;
         p.displayPath = '/Users/megadmin/Desktop/Experiments/Rachel/vistadisp/exptTools2/displays/meg_lcd_20180420_brightness-32';
     otherwise
@@ -61,9 +61,9 @@ p.fixDiameter = .35; %[.35 .7]; % deg
 p.itiType = 'hazard'; % 'uniform','hazard'
 switch p.itiType
     case 'uniform'
-        p.itis = 0.6:0.05:1;
+        p.itis = 1:0.05:1.8;
     case 'hazard'
-        p.itis = 0.6:0.05:2;
+        p.itis = 1:0.05:2.5;
         p.hazardProb = 0.2; % at every time step, the probability of the event is 0.2
         p.itiPDF = p.hazardProb.*(1-p.hazardProb).^(0:numel(p.itis)-1); % f = p.*(1-p).^x;
     otherwise
@@ -84,7 +84,7 @@ p.gratingSF = 1.5; % cpd
 p.gratingOrientations = 0:20:179; %0:5:179; %0:20:179; 
 p.gratingPhases = [0 pi/2 pi 3*pi/2]; % eg. 0, or [0 pi/2 pi 3*pi/2]
 p.gratingContrasts = 1; 
-p.aperture = 'radial-sine-ring'; % 'cosyne-ring','radial-sine-ring'
+p.aperture = 'cosyne'; % 'cosyne','cosyne-ring','radial-sine-ring'
 p.apertureEdgeWidth = 1; % half of a period, so sf of radial-sine aperture is 1/(2*width)
 if strfind(p.aperture,'radial')
     p.apertureSF = 1/(2*p.apertureEdgeWidth);

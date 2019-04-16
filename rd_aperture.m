@@ -18,6 +18,10 @@ if any(strfind(type, 'ring'))
     if length(rad)~=2
         rad = [rad 0];
     end
+else
+    if length(rad)==2
+        rad = rad(1);
+    end
 end
 
 %% Setup

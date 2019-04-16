@@ -3,7 +3,7 @@
 %% generate distributions
 p = .2;
 
-itis = 0.6:0.05:2;
+itis = 1:0.05:2.5;
 x = 0:numel(itis)-1;
 
 f = p.*(1-p).^x; % pdf
