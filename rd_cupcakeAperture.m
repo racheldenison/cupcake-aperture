@@ -184,9 +184,16 @@ if ~isempty(prevDataFiles)
     
     stairFileName = prevDataFiles(idx).name;
     stairFile = load(sprintf('%s/%s', dataDir, stairFileName));
-    stairIdx = stairFile.expt.staircase.stairValues(end); % pick up where we left off
     
-    fprintf('\nStaircase start at %1.2f, from file %s\n\n', p.stairs(stairIdx), stairFileName);
+    stairValues = stairFile.expt.staircase.stairValues;
+    if isempty(stairValues) % there is a saved file, but the staircase was off
+        stairIdx = numel(p.stairs); % start easy
+        fprintf('\nStaircase start at %1.2f\n\n', p.stairs(stairIdx));
+    else
+        stairIdx = stairValues(end); % pick up where we left off
+        fprintf('\nStaircase start at %1.2f, from file %s\n\n', p.stairs(stairIdx), stairFileName);
+    end
+    
     clear stairFile
 else
     stairIdx = numel(p.stairs); % start easy
@@ -683,7 +690,7 @@ for iTrial = 1:nTrials
         if iTrial==nTrials
             keyMessage = '';
         else
-            keyMessage = 'Press any key to go on.';
+            keyMessage = 'Press 1 to go on.';
         end
         
         breakMessage = sprintf('%s\n%s\n\n%s', blockMessage, accMessage, keyMessage);
@@ -691,7 +698,19 @@ for iTrial = 1:nTrials
         Screen('Flip', window);
         WaitSecs(1);
         if iTrial < nTrials
-            KbWait(devNum);
+            keyPressed = 0;
+            while ~keyPressed
+                if p.useKbQueue
+                    [keyIsDown, firstPress] = KbQueueCheck();
+                    keyCode = logical(firstPress);
+                else
+                    [secs, keyCode] = KbWait(devNum);
+                end
+                
+                if strcmp(KbName(keyCode),'1!')
+                    keyPressed = 1;
+                end
+            end
         end
         
         block = block+1; % keep track of block for block message only
