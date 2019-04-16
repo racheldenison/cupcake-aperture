@@ -37,9 +37,9 @@ function [out, exitFlag] = rd_eyeLink(command, window, in)
 % assume no output unless some is given
 out = [];
 
-% assume everything goes ok (exitFlag=0) until proven otherwise        
+% assume everything goes ok (exitFlag=0) until proven otherwise
 exitFlag = 0;
-        
+
 %% Do command
 switch command
     case 'eyestart'
@@ -78,28 +78,32 @@ switch command
         %% calibrate eyetracker
         el = in;
         
-        calString = sprintf('Eye tracker calibration:\n\nPlease fixate the center of the dot!\n\nPress ''space'' to start or ''q'' to quit!');
-        DrawFormattedText(window, calString, 'center', 'center', 1, []);
-        Screen('Flip', window, 0, 1); 
+        showIntroScreen = false;
         
-        contKey = '';
-        while isempty(find(strcmp(contKey,'space'), 1))
-            keyIsDown = 0;
-            while ~keyIsDown
-                [keyIsDown, keyTime, keyCode] = KbCheck(-1); %% listen to all keyboards
+        if showIntroScreen
+            calString = sprintf('Eye tracker calibration:\n\nPlease fixate the center of the dot!\n\nPress ''space'' to start or ''q'' to quit!');
+            DrawFormattedText(window, calString, 'center', 'center', 1, []);
+            Screen('Flip', window, 0, 1);
+            
+            contKey = '';
+            while isempty(find(strcmp(contKey,'space'), 1))
+                keyIsDown = 0;
+                while ~keyIsDown
+                    [keyIsDown, keyTime, keyCode] = KbCheck(-1); %% listen to all keyboards
+                end
+                contKey = KbName(find(keyCode));
             end
-            contKey = KbName(find(keyCode));
+            if strcmp(contKey,'q')
+                ListenChar(0);
+                ShowCursor;
+                Screen('CloseAll')
+                fclose('all');
+                fprintf('User ended program');
+                exitFlag = 1;
+                return
+            end
+            Screen('Flip', window, 0, 1);
         end
-        if strcmp(contKey,'q')
-            ListenChar(0);
-            ShowCursor;
-            Screen('CloseAll')
-            fclose('all');
-            fprintf('User ended program');
-            exitFlag = 1;
-            return
-        end
-        Screen('Flip', window, 0, 1);
         
         cal = EyelinkDoTrackerSetup(el);
         if cal==el.TERMINATE_KEY
@@ -145,10 +149,10 @@ switch command
         
         % Displays a title at the bottom of the eye tracker display
         Eyelink('Command', 'record_status_message ''Starting trial %d''', trialNum);
-
+        
         % Start the trial only when 1) eyetracker is recording, 2) subject
         % is fixating
-        ready = 0; 
+        ready = 0;
         while ~ready
             % Check that we are recording
             err=Eyelink('CheckRecording');
@@ -193,13 +197,13 @@ switch command
         tFix = 0; % how long has the current fixation lasted so far?
         
         t = tstart;
-%         counter = 0; % for debugging
-%         fprintf('\n')
+        %         counter = 0; % for debugging
+        %         fprintf('\n')
         while (((t-tstart) < timeout) && (tFix<=tFixMin))
-%             counter = counter+1;
-%             if mod(counter,10)==0
-%                 fprintf('t-tstart=%1.3f, tFix=%1.3f, fixation=%d, fixStart=%d\n', t-tstart, tFix, fixation, fixStart)
-%             end
+            %             counter = counter+1;
+            %             if mod(counter,10)==0
+            %                 fprintf('t-tstart=%1.3f, tFix=%1.3f, fixation=%d, fixStart=%d\n', t-tstart, tFix, fixation, fixStart)
+            %             end
             
             % get eye position
             evt = Eyelink('newestfloatsample');
@@ -209,7 +213,7 @@ switch command
             end
             x = evt.gx(domEye);
             y = evt.gy(domEye);
-
+            
             % check for blink
             if isempty(x) || isempty(y)
                 fixation = 0;
@@ -307,8 +311,8 @@ switch command
         
         fprintf('\n\nSaving file %s/%s ...\n', eyeDataDir, eyeFile)
         
-        Eyelink('ReceiveFile', eyeFile, eyeDataDir, 1); 
-        Eyelink('CloseFile'); 
+        Eyelink('ReceiveFile', eyeFile, eyeDataDir, 1);
+        Eyelink('CloseFile');
         Eyelink('Shutdown');
         
     otherwise

@@ -18,7 +18,8 @@ missedTrials = trials(:,strcmp(trials_headers,'targetState'))==1 & trials(:,strc
 
 nc = 5; % num columns
 
-figure('Position',[100 100 1400 400])
+%% stimulus timing
+fh(1) = figure('Position',[100 100 1400 400]);
 subplot(1,nc,1)
 hold on
 hist(timing.imDur)
@@ -57,8 +58,15 @@ vline(p.responseWindowDur + p.toneOnsetSOA,'r')
 xlabel('Image-tone ITI, misses (s)')
 ylabel('Number of trials')
 
-if saveFigs
-    rd_saveAllFigs(gcf, {'timing'}, sprintf('%s_run%02d', subjectID, run))
-end
+%% trigger timing
+fh(2) = figure('Position',[60 320 750 210]);
+plot(timing.triggers(:,2)-timing.startTime,timing.triggers(:,1),'.-')
+ylim([0,17])
+xlabel('Time (s)')
+ylabel('Trigger')
 
+%% save figs
+if saveFigs
+    rd_saveAllFigs(fh, {'timing', 'triggers'}, sprintf('%s_run%02d', subjectID, run))
+end
 

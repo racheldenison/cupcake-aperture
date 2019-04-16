@@ -29,9 +29,9 @@ switch p.testingLocation
         p.screenSize = [23.8 16.4]; % cm
         p.screenRes = [1024 768];
         p.viewDist = 42; % cm
-        p.eyeTracking = 0;
-        p.useKbQueue = 1;
-        p.soundAmp = 0.10;
+        p.eyeTracking = 1;
+        p.useKbQueue = 0;
+        p.soundAmp = 1;
         p.triggersOn = 1;
         p.displayPath = '/Users/megadmin/Desktop/Experiments/Rachel/vistadisp/exptTools2/displays/meg_lcd_20180420_brightness-32';
     otherwise
@@ -40,7 +40,7 @@ end
 
 p.keyCodes = KbName(p.keyNames);
 p.backgroundColor = 0.5;
-p.nReps = 1;
+p.nReps = 2;
 p.nTrialsPerBlock = 72;
 % p.eyeRad = 1.5; % allowed fixation radius (degrees)   
 
@@ -95,7 +95,7 @@ p.targetStates = [1 0]; % 1=present, 0=absent
 p.propTargetPresent = .2;
 
 % Staircase
-p.staircase = 1;
+p.staircase = 0;
 p.stairs = 1-logspace(-1.5,0,15); % hard (~1) to easy (0)
 if p.staircase
     p.targetContrast = 0;
@@ -114,8 +114,9 @@ p.toneOnsetSOA = 0.02; % 20 ms
 % 10^0.5 for every 10dB
 
 % MEG triggers
-p.triggers.fixation = 1;
-p.triggers.image = 2;
-p.triggers.tone = 4;
-p.triggers.response = 8;
+p.triggers.fixation = 2^0; %1
+p.triggers.image = 2^1; %2
+p.triggers.tone = 2^2; %4
+p.triggers.target = 2^3; %8
+p.triggers.response = 2^4; %16
 

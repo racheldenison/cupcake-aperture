@@ -6,23 +6,25 @@ if nargin==0
     run = 1;
 end
 
-addpath('../PTBWrapper/') %%% come back
+% add paths
+addpath('../PTBWrapper/')
+addpath('../export-fig/')
 
 expName = 'CupcakeAperture';
 
 saveData = 1;
 plotTimingFigs = 1;
-saveTimingFigs = 0;
+saveTimingFigs = 1;
 plotStaircaseFigs = 1;
-saveStaircaseFigs = 0;
+saveStaircaseFigs = 1;
 
 p = cupcakeApertureParams;
-    
+
 if strcmp(subjectID,'test')
     p.eyeTracking = 0;
 end
 
-slack = (1/p.refRate)*.9; 
+slack = (1/p.refRate)*.9;
 ppd = ang2pix(1, p.screenSize(1), p.screenRes(1), p.viewDist, 'central'); % pixels per degree
 
 % Running on PTB-3? Abort otherwise.
@@ -39,7 +41,7 @@ if p.triggersOn
     PTBTriggerLength = 0.001;
     
     % to send trigger messages to EyeLink
-    global PTBEyeTrackerRecording 
+    global PTBEyeTrackerRecording
     if p.eyeTracking
         PTBEyeTrackerRecording = 1;
     else
@@ -163,7 +165,7 @@ switch p.testingLocation
         gammatable = Screen('ReadNormalizedGammaTable', window);
         if nnz(abs(gammatable-table)>0.0001)
             error('Gamma table not loaded correctly! Perhaps set screen res and retry.')
-        end     
+        end
     otherwise
         fprintf('\nNot loading gamma table ...\n')
 end
@@ -292,7 +294,7 @@ trialOrder = trialOrder0(:);
 trials = trials(trialOrder,:);
 
 %% Eyetracker
-if p.eyeTracking    
+if p.eyeTracking
     % Initialize eye tracker
     [el exitFlag] = rd_eyeLink('eyestart', window, eyeFile);
     if exitFlag
@@ -315,7 +317,7 @@ if p.eyeTracking
     
     % Update with custom settings
     EyelinkUpdateDefaults(el);
-
+    
     % Calibrate eye tracker
     [cal exitFlag] = rd_eyeLink('calibrate', window, el);
     if exitFlag
@@ -326,25 +328,71 @@ if p.eyeTracking
     rd_eyeLink('startrecording', window, el);
 end
 
-%% Present trials
-% Show fixation
+%% Example image and tones
+% Wait for a button press
 Screen('FillRect', window, p.backgroundColor*white);
 drawPlaceholders(window, white, p.backgroundColor*white, phRect, p.phLineWidth, p.showPlaceholders)
 drawFixation(window, cx, cy, fixSize, p.fixColor*white);
+DrawFormattedText(window, 'Press 1 to start', 'center', cy-round(3*ppd), [1 1 1]*white);
 Screen('Flip', window);
+
+keyPressed = 0;
+while ~keyPressed
+    if p.useKbQueue
+        [keyIsDown, firstPress] = KbQueueCheck();
+        keyCode = logical(firstPress);
+    else
+        [secs, keyCode] = KbWait(devNum);
+    end
+    
+    if strcmp(KbName(keyCode),'1!')
+        keyPressed = 1;
+    end
+end
+
 % Play example feedback tones
 for iTone = 1:size(p.tones,1)
     PsychPortAudio('FillBuffer', pahandle, p.tones(iTone,:)*p.soundAmp);
-    PsychPortAudio('Start', pahandle, [], [], 1); 
-    WaitSecs(.8)
-end
-% Wait for a button press
-if p.useKbQueue
-    KbQueueWait(devNum);
-else
-    KbWait(devNum);
+    PsychPortAudio('Start', pahandle, [], [], 1);
+    WaitSecs(.8);
 end
 
+% Present example image
+tex = texs(1);
+orientation = 0;
+drawPlaceholders(window, white, p.backgroundColor*white, phRect, p.phLineWidth, p.showPlaceholders)
+Screen('DrawTexture', window, tex, [], imRect, orientation);
+drawFixation(window, cx, cy, fixSize, p.fixColor*white);
+timeSampleIm = Screen('Flip', window);
+
+% Show fixation
+drawPlaceholders(window, white, p.backgroundColor*white, phRect, p.phLineWidth, p.showPlaceholders)
+drawFixation(window, cx, cy, fixSize, p.fixColor*white);
+Screen('Flip', window, timeSampleIm + p.gratingDur - slack);
+WaitSecs(1);
+
+% Now wait for the experimenter to initiate the run
+% Show fixation
+drawPlaceholders(window, white, p.backgroundColor*white, phRect, p.phLineWidth, p.showPlaceholders)
+drawFixation(window, cx, cy, fixSize, p.fixColor*white);
+DrawFormattedText(window, 'Experimenter press 5 to begin', 'center', cy-round(3*ppd), [1 1 1]*white);
+Screen('Flip', window);
+
+keyPressed = 0;
+while ~keyPressed
+    [secs, keyCode] = KbWait(-1);
+    if strcmp(KbName(keyCode),'5%')
+        keyPressed = 1;
+    end
+end
+
+% Show fixation
+drawPlaceholders(window, white, p.backgroundColor*white, phRect, p.phLineWidth, p.showPlaceholders)
+drawFixation(window, cx, cy, fixSize, p.fixColor*white);
+Screen('Flip', window, timeSampleIm + p.gratingDur - slack);
+WaitSecs(2);
+
+%% Present trials
 % Trials
 trialsPresented = [];
 lastFewAcc = [];
@@ -359,11 +407,13 @@ stairCounter = 1;
 % Present initial fixation
 drawPlaceholders(window, white, p.backgroundColor*white, phRect, p.phLineWidth, p.showPlaceholders)
 drawFixation(window, cx, cy, fixSize, p.fixColor*white);
+if strcmp(p.testingLocation,'MEG')
+    drawPhotodiode(window, [cx cy]*2, white, 0); % black
+end
 timeFix = Screen('Flip', window); % first image will be presented after an ITI with respect to this time
-timing.startTime = timeFix; 
+timing.startTime = timeFix;
 if p.triggersOn
-    PTBSendTrigger(p.triggers.fixation, 0); %%% todo
-    % fprintf('Trigger %d\n', p.triggers.fixation); drawnow
+    PTBSendTrigger(p.triggers.fixation, 0); 
     triggerTimes = [triggerTimes; p.triggers.fixation GetSecs];
 end
 if p.eyeTracking
@@ -395,12 +445,12 @@ for iTrial = 1:nTrials
     tex = texs(phaseCond,contrastCond);
     
     % Set fixation contrast based on staircase
-    if p.staircase
-        if targetState==1 % target present
+    if targetState==1 % target present
+        if p.staircase
             fixColor = p.fixColor;
             fixColor(1) = p.stairs(stairIdx);
         else
-            fixColor = p.fixColor;
+            fixColor = p.stairs(end);
         end
     else
         fixColor = p.fixColor;
@@ -423,6 +473,11 @@ for iTrial = 1:nTrials
             rtx = secs - timeFix; % measure from start of trial
             key = find(keyCode);
             extraKeyPresses = [extraKeyPresses; secs rtx key(1)];
+            
+            if p.triggersOn
+                PTBSendTrigger(p.triggers.response, 0);
+                triggerTimes = [triggerTimes; p.triggers.response GetSecs];
+            end
         end
     end
     
@@ -430,11 +485,18 @@ for iTrial = 1:nTrials
     drawPlaceholders(window, white, p.backgroundColor*white, phRect, p.phLineWidth, p.showPlaceholders)
     Screen('DrawTexture', window, tex, [], imRect, orientation);
     drawFixation(window, cx, cy, fixSize, fixColor*white); % fixColor can change trial to trial
+    if strcmp(p.testingLocation,'MEG')
+        drawPhotodiode(window, [cx cy]*2, white, 1); % white
+    end
     timeIm = Screen('Flip', window, timeFix + iti - slack);
     if p.triggersOn
         PTBSendTrigger(p.triggers.image, 0);
-        % fprintf('Trigger %d\n', p.triggers.image); drawnow
         triggerTimes = [triggerTimes; p.triggers.image GetSecs];
+        
+        if targetState==1
+            PTBSendTrigger(p.triggers.target, 0);
+            triggerTimes = [triggerTimes; p.triggers.target GetSecs];
+        end
     end
     if p.eyeTracking
         Eyelink('Message', 'EVENT_IMAGE');
@@ -457,6 +519,11 @@ for iTrial = 1:nTrials
             rtx = secs - timeFix; % measure from start of trial
             key = find(keyCode);
             extraKeyPresses = [extraKeyPresses; secs rtx key(1)];
+                        
+            if p.triggersOn
+                PTBSendTrigger(p.triggers.response, 0);
+                triggerTimes = [triggerTimes; p.triggers.response GetSecs];
+            end
         end
     end
     
@@ -464,10 +531,12 @@ for iTrial = 1:nTrials
     Screen('FillRect', window, white*p.backgroundColor);
     drawPlaceholders(window, white, p.backgroundColor*white, phRect, p.phLineWidth, p.showPlaceholders)
     drawFixation(window, cx, cy, fixSize, p.fixColor*white);
+    if strcmp(p.testingLocation,'MEG')
+        drawPhotodiode(window, [cx cy]*2, white, 0); % black
+    end
     timeFix = Screen('Flip', window, timeIm + p.gratingDur - slack);
     if p.triggersOn
         PTBSendTrigger(p.triggers.fixation, 0);
-        % fprintf('Trigger %d\n', p.triggers.fixation); drawnow
         triggerTimes = [triggerTimes; p.triggers.fixation GetSecs];
     end
     if p.eyeTracking
@@ -475,8 +544,8 @@ for iTrial = 1:nTrials
     end
     
     % Collect response
-    responseKey = []; 
-    while isempty(responseKey) && GetSecs < timeIm + p.responseWindowDur 
+    responseKey = [];
+    while isempty(responseKey) && GetSecs < timeIm + p.responseWindowDur
         if p.useKbQueue
             [keyIsDown, firstPress] = KbQueueCheck();
             if keyIsDown
@@ -502,11 +571,17 @@ for iTrial = 1:nTrials
         response = 1; % present
         timeResp = secs;
         rt = timeResp - timeIm; % measured from image onset
+        
+        if p.triggersOn
+            PTBSendTrigger(p.triggers.response, 0);
+            triggerTimes = [triggerTimes; p.triggers.response GetSecs];
+        end
+        
         if p.eyeTracking
             Eyelink('Message', 'EVENT_RESPONSE');
         end
     end
-
+    
     % Feedback
     if response==targetState
         correct = 1;
@@ -525,10 +600,9 @@ for iTrial = 1:nTrials
         
         % Present feedback tone
         PsychPortAudio('FillBuffer', pahandle, feedbackTone*p.soundAmp);
-        timeTone = PsychPortAudio('Start', pahandle, [], toneRefTime + p.toneOnsetSOA, 1); 
+        timeTone = PsychPortAudio('Start', pahandle, [], toneRefTime + p.toneOnsetSOA, 1);
         if p.triggersOn
             PTBSendTrigger(p.triggers.tone, 0);
-            % fprintf('Trigger %d\n', p.triggers.tone); drawnow
             triggerTimes = [triggerTimes; p.triggers.tone GetSecs];
         end
         if p.eyeTracking
@@ -546,7 +620,7 @@ for iTrial = 1:nTrials
     if p.eyeTracking
         Eyelink('Message', 'TRIAL_END');
     end
-
+    
     % Adjust staircase level, only if target was present
     if p.staircase && targetState==1
         [stairIdx, lastFewAcc] = updateStaircase(...
@@ -564,7 +638,7 @@ for iTrial = 1:nTrials
             threshold = [];
         end
     end
-   
+    
     % Store trial info
     trials(iTrial,iti2Idx) = iti; % the actual ITI, including extra delay
     trials(iTrial,fixColorIdx) = fixColor(1);
@@ -572,7 +646,7 @@ for iTrial = 1:nTrials
     trials(iTrial,responseIdx) = response;
     trials(iTrial,correctIdx) = correct;
     trials(iTrial,rtIdx) = rt;
-        
+    
     % Store timing
     timing.timeFix(iTrial,1) = timeFix;
     timing.timeIm(iTrial,1) = timeIm;
@@ -589,10 +663,10 @@ for iTrial = 1:nTrials
     trialsPresented(iTrial).toneIdx = toneIdx;
     trialsPresented(iTrial).extraKeyPresses = extraKeyPresses;
     
-    if mod(iTrial,p.nTrialsPerBlock)==0 || iTrial==nTrials    
+    if mod(iTrial,p.nTrialsPerBlock)==0 || iTrial==nTrials
         % Save the workspace every block
         save('data/TEMP')
-
+        
         % Calculate block accuracy
         blockStartTrial = (iTrial/p.nTrialsPerBlock)*p.nTrialsPerBlock - p.nTrialsPerBlock + 1;
         if blockStartTrial < 0 % we are doing less than one block
@@ -645,6 +719,11 @@ timing.iti = timing.timeIm - timing.timeFix(1:end-1); % im1 - fix1, trial is iti
 timing.respToneSOA = timing.timeTone - timing.timeResp;
 timing.imToneSOA = timing.timeTone - timing.timeIm;
 
+%% Store staircase 
+staircase.stairValues = stairValues;
+staircase.reversalValues = reversalValues;
+staircase.threshold = threshold;
+
 %% Store expt info
 expt.subjectID = subjectID;
 expt.run = run;
@@ -653,13 +732,8 @@ expt.timing = timing;
 expt.trials_headers = trials_headers;
 expt.trials = trials;
 expt.trialsPresented = trialsPresented;
+expt.staircase = staircase;
 expt.whenSaved = datestr(now);
-
-if p.staircase
-    expt.staircase.stairValues = stairValues;
-    expt.staircase.reversalValues = reversalValues;
-    expt.staircase.threshold = threshold;
-end
 
 %% Analyze and save data
 save('data/TEMP')
@@ -668,20 +742,22 @@ if saveData
     save(dataFile, 'expt')
 end
 
-if plotTimingFigs
-    plotTiming(expt, saveTimingFigs)
-end
-
-if plotStaircaseFigs
-    plotStaircase(expt, saveStaircaseFigs)
-end
-
 %% Save eye data and shut down the eye tracker
 if p.eyeTracking
     rd_eyeLink('eyestop', window, {eyeFile, eyeDataDir});
     
     % rename eye file
     copyfile(sprintf('%s/%s.edf', eyeDataDir, eyeFile), eyeFileFull)
+    delete(sprintf('%s/%s.edf', eyeDataDir, eyeFile))
+end
+
+%% Plot figures
+if plotTimingFigs
+    plotTiming(expt, saveTimingFigs)
+end
+
+if plotStaircaseFigs
+    plotStaircase(expt, saveStaircaseFigs)
 end
 
 %% Clean up
