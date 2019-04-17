@@ -35,40 +35,14 @@ legend( ...
   'location', 'NorthWest' );
 
 %% check ITI 
-iti = [expt.trialsPresented.iti]; % store ITI's in array
-figure
-, p.itiPDF)
 
-
-
-
-% itiPlot.FaceColor = [.9 .9 .9];
-
-xlabel('ITI (s)')
-ylabel('Frequency')
-
-% histfit(p.itiPDF)
-xgrid = linspace(min(iti),0.05,max(iti))';
+%% check presented ITIs against hazard 
+iti = [expt.trialsPresented.iti]; % store presented itis 
+histogram(iti, 'Normalization', 'probability') % the y and x axis, respectively
 
 hold on
 p.itis = 1:0.05:2.5; 
 p.hazardProb = 0.2; % at every time step, the probability of the event is 0.2
 p.itiPDF = p.hazardProb.*(1-p.hazardProb).^(0:numel(p.itis)-1); % f = p.*(1-p).^x;
-
-
-line(p.itis,p.itiPDF,'Color','r');
-set(gca, ...
-  'Box'         , 'off'      ......
-);
-
-[freq_count, bin_value] = hist(iti); %the y and x axis, respectively
-bar(bin_value,freq_count./length(iti)) %normalized y-axis with x axis the bins
-
-% hold on
-figure
-p.itis = 1:0.05:2.5; 
-p.hazardProb = 0.2; % at every time step, the probability of the event is 0.2
-% p.itiPDF = p.hazardProb.*(1-p.hazardProb).^(0:numel(p.itis)-1); % f = p.*(1-p).^x;
-p.itiPDF = p.hazardProb.*(1-p.hazardProb).^(0:numel(p.itis)-1); % f = p.*(1-p).^x;
-plot(x
+plot(p.itis,p.itiPDF)
 
