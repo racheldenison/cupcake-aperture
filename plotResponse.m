@@ -8,7 +8,7 @@
 % run = expt.run;
 
 figure('Position',[1 100 1200 650]);
-histColor = [.7 .7 .7]; % grey
+histColor = [.8 .8 .8]; % grey
 
 %% plot response and target state by time
 subplot(2,1,1)
@@ -37,9 +37,11 @@ for i =1:numTrials
     sTarget = scatter(expt.timing.timeResp-expt.timing.startTime, target, 10 ,cFill, 'filled'); % if target, fill red
 end
 set(gca, ...
-  'Box'         , 'off'     , ...
-  'YTick'       , -1:1:2       ...
-);
+    'Box'         , 'off'                , ...
+    'FontName'    , 'Helvetica'          , ... 
+    'LineWidth'   , 0.75                 ,...
+    'YTick'       , -1:1:2       ...
+    );
 ylim([0,2])
 xlim([min(expt.timing.timeResp)-expt.timing.startTime-2,max(expt.timing.timeResp)-expt.timing.startTime+2])
 xlabel('Time (s)')
@@ -57,56 +59,66 @@ title(sprintf('Responses; target proportion = %0.2f, hit rate = %0.2f, false ala
 % figure('Position',[60 320 1200 200]);
 subplot(2,1,2)
 iti = [expt.trialsPresented.iti]; % store presented itis 
+for i = 1:numTrials 
+    if resp(i)==1 % correct reponse
+        iti(i)=iti(i)-expt.p.extraITI; % remove extra ITI
+    end
+end
 itiSteps = expt.p.itis; % edges of hist bins = requested itis
 histITI = histogram(iti, itiSteps, 'FaceColor', histColor, 'Normalization', 'probability'); % default count, normalization probability 
 histITI.BinEdges = histITI.BinEdges - histITI.BinWidth/2;
 
 hold on % fit hazard 
 itiPDF = expt.p.hazardProb.*(1-expt.p.hazardProb).^(0:numel(itiSteps)-1); % f = p.*(1-p).^x;
-plot(itiSteps,itiPDF)
+plot(itiSteps,itiPDF, 'r', 'LineWidth', 1)
 
 set(gca, ...
-  'Box'         , 'off'     , ...
-  'XTick'       , itiSteps       ...
-);
-ylim([0,0.4])
+    'Box'         , 'off'              , ...
+    'FontName'    , 'Helvetica'        , ...
+    'LineWidth'   , 0.75               ,...
+    'XTick'       , itiSteps           ...
+    );
+ylim([0,0.25])
 xlabel('Time (s)')
 ylabel('Proportion')
 title(sprintf('ITIs; hazard probability = %0.2f', p.hazardProb))
 
 %% plot stim params 
-figure
+figure('Name','Stimuli Parameters','Position',[1 100 900 350])
 
 % orientation
-subplot(2,1,1)
+subplot(1,2,1)
 orientation = [expt.trialsPresented.orientation];
 histOrientation = histogram(orientation, [expt.p.gratingOrientations 180], 'FaceColor', histColor, 'Normalization', 'probability');
 histOrientation.BinEdges = histOrientation.BinEdges - histOrientation.BinWidth/2;
 set(gca, ...
-  'Box'         , 'off'     , ...
-  'XTick'       , expt.p.gratingOrientations       ...
-);
+    'Box'         , 'off'     , ...
+    'FontName'    , 'Helvetica'        , ...
+    'LineWidth'   , 0.75                 ,...
+    'XTick'       , expt.p.gratingOrientations       ...
+    );
 xlabel('Orientation (degree)')
 ylabel('Proportion')
 xrange = [-12.5, 170];
 hold on
 orientationRef = 1/max(size(expt.p.gratingOrientations)); 
 plot(xrange, [orientationRef, orientationRef], 'r', 'LineWidth', 1)
-title('Stimuli Presented')
 
 % phase
-subplot(2,1,2)
+subplot(1,2,2)
 phase = [expt.trialsPresented.phase];
 histPhase = histogram(phase, [expt.p.gratingPhases  max(expt.p.gratingPhases)+pi/2], 'FaceColor', histColor, 'Normalization', 'probability');
 histPhase.BinEdges = histPhase.BinEdges - histPhase.BinWidth/2;
 set(gca, ...
-  'Box'         , 'off'     , ...
-  'XTick'       , expt.p.gratingPhases       ...
-);
+    'Box'         , 'off'     , ...
+    'FontName'    , 'Helvetica'        , ...
+    'LineWidth'   , 0.75                 ,...
+    'XTick'       , expt.p.gratingPhases       ...
+    );
 xlabel('Phase')
 ylabel('Proportion')
-xrange = [-1, 5.5];
-ylim([0,0.35])
+xrange = [-1, 5.7];
+ylim([0,0.5])
 hold on
 phaseRef = 1/max(size(expt.p.gratingPhases)); 
 plot(xrange, [phaseRef, phaseRef], 'r', 'LineWidth', 1)
