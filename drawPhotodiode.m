@@ -7,6 +7,7 @@ function colIndex = drawPhotodiode(window, screenSizePx, maxValue, colIndex)
 % window is the window pointer
 % screenSizePx is 2x1 vector [x, y]
 % maxValue is the maximum luminance value in 0-255
+% colIndex: 0 for black, 1 for white
 
 if nargin < 2, colIndex = 1; end;
 
