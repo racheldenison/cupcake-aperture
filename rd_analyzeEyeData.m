@@ -2,7 +2,7 @@
 
 %% setup
 fileDir = 'eyedata';
-fileName = 'kt_target0pt1_run02_CupcakeAperture_20190411';
+fileName = 'kt_allButtons_run01_CupcakeAperture_20190416';
 
 edfFile = sprintf('%s/%s.edf', fileDir, fileName);
 
@@ -23,7 +23,7 @@ for iM = 1:nM
     
     plot(vals')
     title(m)
-    pause(2)
+    pause(.5)
 end
 
 %% get useful measures
@@ -89,8 +89,7 @@ imt = double(imTimes - t0(1))/Fs;
 figure
 hold on
 plot(t, pa)
-plot(imt, 1500, '.')
-ylim([500 2500])
+plot(imt, mean(pa), '.', 'MarkerSize',20)
 xlabel('time (s)')
 ylabel('pupil size')
 
