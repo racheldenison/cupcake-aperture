@@ -6,6 +6,8 @@ if nargin==0
     run = 1;
 end
 
+HideCursor;
+
 % add paths
 addpath('../PTBWrapper/')
 addpath('../export-fig/')
@@ -780,6 +782,7 @@ if plotStaircaseFigs
 end
 
 %% Clean up
+ShowCursor;
 PsychPortAudio('Stop', pahandle);
 PsychPortAudio('Close', pahandle);
 Screen('CloseAll')

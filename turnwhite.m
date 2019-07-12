@@ -11,4 +11,3 @@ if nargin==0
 end
 
 set(f,'color','w')
-
