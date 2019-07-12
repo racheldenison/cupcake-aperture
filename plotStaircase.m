@@ -6,6 +6,7 @@ run = expt.run;
 p = expt.p;
 stairValues = expt.staircase.stairValues;
 
+vals = [];
 for i = 1:numel(stairValues)
     vals(i) = p.stairs(stairValues(i));
 end

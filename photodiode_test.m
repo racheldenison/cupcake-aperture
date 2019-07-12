@@ -4,9 +4,11 @@ if nargin==0
     run = [];
 end
 
+% addpath(genpath('../PTBWrapper'))
+
 % addpath(genpath('PTBWrapper'))
 
-Screen('Preference', 'SkipSyncTests', 1);
+% Screen('Preference', 'SkipSyncTests', 1);
 
 %% Set up stim tracker
 PTBInitStimTracker;
@@ -27,7 +29,7 @@ white = WhiteIndex(window);
 %% Run
 timeFlip = GetSecs;
 timeFlips(1) = timeFlip;
-for i = 1:300
+for i = 1:1000
     fprintf('\n\nTrial %d\n', i)
     
     tic
@@ -35,8 +37,8 @@ for i = 1:300
     toc
     
     tic
-    timeFlip = Screen('Flip', window); % 17-34 ms? % as fast as possible
-%     timeFlip = Screen('Flip', window, timeFlip + 0.1 - 0.016); % every 100 ms
+%     timeFlip = Screen('Flip', window); % 17-34 ms? % as fast as possible
+    timeFlip = Screen('Flip', window, timeFlip + 0.1 - 0.016); % every 100 ms
     toc
     timeFlips(i+1) = timeFlip;
     
