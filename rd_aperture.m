@@ -3,13 +3,13 @@ function [imout, ap] = rd_aperture(im, type, rad, w)
 % function [imout, ap] = rd_aperture(im, type, rad, w)
 %
 % type is the type of aperture:
-%   'square','gaussian','cosyne','cosyne-ring','radial-sine','radial-sine-ring'
+%   'square','gaussian','cosine','cosine-ring','radial-sine','radial-sine-ring'
 %
 % rad is the radius of the aperture opening 
 %   for 'gaussian', sigma = rad
-%   for 'cosyne-ring' aperture, rad = [outer inner]
+%   for 'cosine-ring' aperture, rad = [outer inner]
 %
-% w is the width of the aperture edge ('cosyne*','radial*')
+% w is the width of the aperture edge ('cosine*','radial*')
 %   frequency of sine wave = 1/(2*w)
 %   for 'radial*', also controls the spatial frequency
 
@@ -43,7 +43,7 @@ switch type
     case 'gaussian'
         ap = exp(-r.^2/(2*rad^2)); % sigma = rad, ~4 SDs are visible at full contrast
         
-    case 'cosyne'
+    case 'cosine'
         p = w*2; % period
         f = 1/p; % frequency
         phase = (p/4 - rad)/p * 2*pi;
@@ -54,7 +54,7 @@ switch type
         
         ap = ap/2 + .5; % set range 0-1
         
-    case 'cosyne-ring'
+    case 'cosine-ring'
         p = w*2; % period
         f = 1/p; % frequency
         phase = (p/4 - rad)/p * 2*pi;
