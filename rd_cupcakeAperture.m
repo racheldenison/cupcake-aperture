@@ -221,8 +221,8 @@ for iP = 1:numel(p.gratingPhases)
         grating = rd_grating(ppd, p.imSize(1), ...
             spatialFrequency, orientation, phase, contrast);
         
-        ims{iP,iC} = rd_aperture(grating, p.aperture, gratingRadius, edgeWidth);
-        texs(iP,iC) = Screen('MakeTexture', window, ims{iP,iC}*white);
+        ims{iP,iC} = rd_aperture(grating, p.aperture, gratingRadius, edgeWidth, p.angularFreq);
+%         texs(iP,iC) = Screen('MakeTexture', window, ims{iP,iC}*white);
     end
 end
 

@@ -1,9 +1,9 @@
-function [imout, ap] = rd_aperture(im, type, rad, w)
+function [imout, ap] = rd_aperture(im, type, rad, w, af)
 
-% function [imout, ap] = rd_aperture(im, type, rad, w)
+% function [imout, ap] = rd_aperture(im, type, rad, w, af)
 %
 % type is the type of aperture:
-%   'square','gaussian','cosine','cosine-ring','radial-sine','radial-sine-ring'
+%   'square','gaussian','cosine','cosine-ring','radial-sine','radial-sine-ring','vignette-ring'
 %
 % rad is the radius of the aperture opening 
 %   for 'gaussian', sigma = rad
@@ -12,6 +12,8 @@ function [imout, ap] = rd_aperture(im, type, rad, w)
 % w is the width of the aperture edge ('cosine*','radial*')
 %   frequency of sine wave = 1/(2*w)
 %   for 'radial*', also controls the spatial frequency
+%
+% af is the angular frequency, for 'vignette' only
 
 %% Check inputs
 if any(strfind(type, 'ring'))
@@ -22,6 +24,10 @@ else
     if length(rad)==2
         rad = rad(1);
     end
+end
+
+if nargin < 5
+    af = [];
 end
 
 %% Setup
@@ -93,6 +99,38 @@ switch type
         ap2 = ap2/2 + .5; 
         
         ap = ap1.*(1-ap2);
+        
+    case 'vignette-ring'
+        %% Roth radial scaled eccentricity vignette
+        p = w*2; % period
+        f = 1/p; % frequency
+        phase = (p/4 - rad)/p * 2*pi;
+        
+        % radial modulator that scales by eccentricity, adapted from Roth 2018
+%         af = 8.25; % angFreq
+        a = ((4*af+pi)/(4*af-pi))^(2/pi);
+        modulator = cos(log(r)/log(a));
+        
+        im = (im - .5).*modulator + .5; % range 0 to 1
+        
+        % take absolute value of modulator so blacks and whites become 1,
+        % greys 0.5
+        ap1 = abs(modulator);
+        ap1(r > rad(1) + w/2) = 0;
+        
+        % change 0.5 to determine grating space ratio
+        ap1(ap1 > 0.5) = 1;
+        ap1(ap1 < 0.5) = 0;
+        
+        ap2 = cos(2*pi*f*r + phase(2)); % aperture for center cutout
+        ap2(r > rad(2) + w/2) = -1;
+        ap2(r < rad(2) - w/2) = 1;
+        ap2 = ap2/2 + .5;
+        
+        ap = ap1.*(1-ap2);
+        
+        ap(ap > 0.5) = 1;
+        ap(ap < 0.5) = 0;
         
     otherwise
         error('type not recognized')

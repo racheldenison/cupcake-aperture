@@ -84,8 +84,9 @@ p.gratingSF = 1.5; % cpd
 p.gratingOrientations = 0:22.5:179; %0:5:179; %0:20:179; %0:22.5:179
 p.gratingPhases = [0 pi/2 pi 3*pi/2]; % eg. 0, or [0 pi/2 pi 3*pi/2]
 p.gratingContrasts = 1; 
-p.aperture = 'cosine'; % disk:'cosine', annulus:'cosine-ring', concentric:'radial-sine-ring'
+p.aperture = 'vignette-ring'; % disk:'cosine', annulus:'cosine-ring', concentric:'radial-sine-ring', roth:'vignette-ring'
 p.apertureEdgeWidth = 1; % half of a period, so sf of radial-sine aperture is 1/(2*width)
+p.angularFreq = 8; % for 'vignette' only
 if strfind(p.aperture,'radial')
     p.apertureSF = 1/(2*p.apertureEdgeWidth);
 end
