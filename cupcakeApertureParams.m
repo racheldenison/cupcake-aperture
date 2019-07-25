@@ -1,29 +1,29 @@
 function p = cupcakeApertureParams
 
-p.testingLocation = 'MEG'; % 'CarrascoL1','desk'
+p.testingLocation = 'desk'; % 'CarrascoL1',, 'MEG'
 
 switch p.testingLocation
-    case 'MEG'
-        p.keyNames = {'1!'};
-        p.refRate = 60;
-        p.screenSize = [23.5 17]; % cm
-        p.screenRes = [1024 768];
-        p.viewDist = 42; % cm
-        p.eyeTracking = 1;
-        p.useKbQueue = 1;
-        p.soundAmp = 0.1;
-        p.triggersOn = 1;
-        p.displayPath = '/Users/megadmin/Desktop/Experiments/Rachel/vistadisp/exptTools2/displays/meg_lcd_20180420_brightness-32';
-%     case {'desk'}
+%     case 'MEG'
 %         p.keyNames = {'1!'};
 %         p.refRate = 60;
-%         p.screenSize = [13 9]; % (in)
-%         p.screenRes = [1280 1024];
-%         p.viewDist = 36; % (in)
-%         p.eyeTracking = 0;
-%         p.useKbQueue = 0;
-%         p.soundAmp = 1;
-%         p.triggersOn = 0;
+%         p.screenSize = [23.5 17]; % cm
+%         p.screenRes = [1024 768];
+%         p.viewDist = 42; % cm
+%         p.eyeTracking = 1;
+%         p.useKbQueue = 1;
+%         p.soundAmp = 0.1;
+%         p.triggersOn = 1;
+%         p.displayPath = '/Users/megadmin/Desktop/Experiments/Rachel/vistadisp/exptTools2/displays/meg_lcd_20180420_brightness-32';
+    case {'desk'}
+        p.keyNames = {'1!'};
+        p.refRate = 60;
+        p.screenSize = [13 9]; % (in)
+        p.screenRes = [1280 1024];
+        p.viewDist = 36; % (in)
+        p.eyeTracking = 0;
+        p.useKbQueue = 0;
+        p.soundAmp = 1;
+        p.triggersOn = 0;
 %     case 'CarrascoL1'
 %         p.keyNames = {'1!'};
 %         p.refRate = 60;

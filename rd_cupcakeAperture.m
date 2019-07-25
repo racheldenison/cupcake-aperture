@@ -6,11 +6,11 @@ if nargin==0
     run = 1;
 end
 
-HideCursor;
-
 % add paths
 addpath('../PTBWrapper/')
 addpath('../export-fig/')
+
+HideCursor;
 
 expName = 'CupcakeAperture';
 
