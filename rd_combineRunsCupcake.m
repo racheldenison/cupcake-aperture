@@ -1,9 +1,10 @@
 % function rd_combineRunsCupcake(subjectID, runs)
 
 %% setup
-behavDir = '/Local/Users/denison/Data/Cupcake/Behavior';
-subjectID = 'R1507_20190425';
-runs = 1:8;
+% behavDir = '/Local/Users/denison/Data/Cupcake/Behavior';
+behavDir = '/Volumes/purplab/EXPERIMENTS/1_Current_Experiments/Rachel/Cupcake/Cupcake_Aperture/Behavior'; % '/Local/Users/denison/Google Drive/Shared/Projects/Cupcake/Code/MEG_Expt/Pilot1_Aperture';
+subjectID = 'R1507_20200311';
+runs = [1 2 5 6 9 10]; %[3 4 7 8 11 12];
 nRuns = numel(runs);
 
 analysisFileName = sprintf('%s/%s/%s_CupcakeAperture_runs%d-%d.mat', behavDir, subjectID, subjectID, runs(1), runs(end));
@@ -15,8 +16,10 @@ staircase.reversalValues = [];
 
 %% runs
 for iRun = 1:nRuns
+    run = runs(iRun);
+    
     %% load data
-    behavFile = dir(sprintf('%s/%s/%s_run%02d_Cupcake*.mat', behavDir, subjectID, subjectID, iRun));
+    behavFile = dir(sprintf('%s/%s/%s_disk_run%02d_Cupcake*.mat', behavDir, subjectID, subjectID, run));
     
     b = load(sprintf('%s/%s', behavFile.folder, behavFile.name));
     
