@@ -203,7 +203,6 @@ else
     fprintf('\nStaircase start at %1.2f\n\n', p.stairs(stairIdx));
 end
 
-
 %% Make stimuli
 % Calculate stimulus dimensions (px) and position
 imPos = round(p.imPos*ppd);
@@ -236,6 +235,13 @@ phRect = phRect + [-1 -1 1 1]*round(p.phCushion*ppd); % expand placeholders by t
 % Calculate fixation diameter in pixels
 fixSize = round(p.fixDiameter*ppd);
 
+% Check contrasts, error if grating contrast + noise contrast > 1
+maxGratingContrast = max(p.gratingContrasts); 
+maxNoiseContrast = max(p.noiseContrasts); 
+if maxGratingContrast + maxNoiseContrast > 1
+    error('Max grating (%.2f) and noise (%.2f) contrasts must not exceed 1',maxGratingContrast,maxNoiseContrast)
+end
+
 %% Generate trials
 % Construct trials matrix
 trials_headers = {'gratingOrientation','gratingPhase','gratingContrast','noiseContrast'...
@@ -258,8 +264,8 @@ rtIdx = strcmp(trials_headers,'rt');
 % full factorial design
 trials = fullfact([numel(p.gratingOrientations) ...
     numel(p.gratingPhases) ...
-    numel(p.gratingContrasts)]); 
-    % numel(p.noiseContrasts)]);
+    numel(p.gratingContrasts) ... 
+    numel(p.noiseContrasts)]);
 
 % repeat trials matrix according to nReps of all conditions
 trials = repmat(trials, p.nReps, 1);
