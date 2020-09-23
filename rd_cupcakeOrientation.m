@@ -1,4 +1,4 @@
-function expt = rd_cupcakeAperture2(subjectID, run)
+function expt = rd_cupcakeOrientation(subjectID, run)
 % same as rd_cupcakeAperture + noise 
 
 %% Setup
@@ -457,7 +457,7 @@ for iTrial = 1:nTrials
     orientation = p.gratingOrientations(oriCond);
     phase = p.gratingPhases(phaseCond);
     contrast = p.gratingContrasts(contrastCond);
-    noiseContrast = p.noiseContrasts(noiseContrastCond); 
+    % noiseContrast = p.noiseContrasts(noiseContrastCond); 
     targetState = p.targetStates(tsCond);
     iti = p.itis(itiCond) + extraITI;
     
@@ -510,7 +510,7 @@ for iTrial = 1:nTrials
     % noise 
     seed = round(rand(1)*1000); 
     rng(seed); 
-    noise = (rand(size(im,1),size(im,2))-0.5) * noiseContrast; % center noise around 0, mulitply by noise contrast
+    noise = (rand(size(im,1),size(im,2))-0.5) * p.noiseContrasts; % center noise around 0, mulitply by noise contrast
     
     % additive grating + noise 
     imNoise = im + noise; 
@@ -579,44 +579,70 @@ for iTrial = 1:nTrials
         Eyelink('Message', 'EVENT_FIX');
     end
     
-    % Collect response
-    responseKey = [];
-    while isempty(responseKey) && GetSecs < timeIm + p.responseWindowDur
-        if p.useKbQueue
-            [keyIsDown, firstPress] = KbQueueCheck();
-            if keyIsDown
-                secs = min(firstPress(firstPress~=0));
-                keyCode = firstPress==secs;
-            else
-                keyCode = [];
-            end
-        else
-            [keyIsDown, secs, keyCode] = KbCheck(devNum);
-        end
-        responseKey = find(p.keyCodes==find(keyCode)); % must press a valid key
-        if numel(responseKey)>1 % if more than one key was pressed simultaneously
-            responseKey = 1;
-        end
+    % orientation 
+    % Present response cue
+    PsychPortAudio('FillBuffer', pahandle, respTone);
+    timeRespCue = PsychPortAudio('Start', pahandle, [], timeCue + p.respCueSOA, 1);
+    if p.eyeTracking
+        Eyelink('Message', 'EVENT_RESPCUE');
     end
-    if isempty(responseKey)
-        response = 0; % absent
-        responseKey = NaN;
-        timeResp = NaN;
-        rt = NaN;
+    
+    % Present go cue (indicating you're allowed to make a response)
+    if p.respGoSOA > 0
+        Screen('FillRect', window, white*p.backgroundColor);
+        DrawFormattedText(window, 'x', 'center', 'center', white*p.goCueColor);
+        drawPlaceholders(window, white, p.backgroundColor*white, phRect, p.phLineWidth, p.showPlaceholders)
+        timeGoCue = Screen('Flip', window, timeRespCue + p.respGoSOA - slack);
     else
-        response = 1; % present
-        timeResp = secs;
-        rt = timeResp - timeIm; % measured from image onset
-        
-        if p.triggersOn
-            PTBSendTrigger(p.triggers.response, 0);
-            triggerTimes = [triggerTimes; p.triggers.response GetSecs];
-        end
-        
-        if p.eyeTracking
-            Eyelink('Message', 'EVENT_RESPONSE');
-        end
+        timeGoCue = timeRespCue;
     end
+    
+    % Collect response
+    [response rt probeStartAngle] = continuousOrientationResponseMouse(...
+        window, white, tex0, imRect, phRect, p);
+    responseKey = NaN;
+    % store probe start angle
+    trialsPresented.vals(iTrial).probeStartAngle = probeStartAngle;
+    %     fprintf('orientation = %d, response = %d\n', rot(respInterval), response)
+    
+%     % Collect response
+%     responseKey = [];
+%     while isempty(responseKey) && GetSecs < timeIm + p.responseWindowDur
+%         if p.useKbQueue
+%             [keyIsDown, firstPress] = KbQueueCheck();
+%             if keyIsDown
+%                 secs = min(firstPress(firstPress~=0));
+%                 keyCode = firstPress==secs;
+%             else
+%                 keyCode = [];
+%             end
+%         else
+%             [keyIsDown, secs, keyCode] = KbCheck(devNum);
+%         end
+%         responseKey = find(p.keyCodes==find(keyCode)); % must press a valid key
+%         if numel(responseKey)>1 % if more than one key was pressed simultaneously
+%             responseKey = 1;
+%         end
+%     end
+%     if isempty(responseKey)
+%         response = 0; % absent
+%         responseKey = NaN;
+%         timeResp = NaN;
+%         rt = NaN;
+%     else
+%         response = 1; % present
+%         timeResp = secs;
+%         rt = timeResp - timeIm; % measured from image onset
+%         
+%         if p.triggersOn
+%             PTBSendTrigger(p.triggers.response, 0);
+%             triggerTimes = [triggerTimes; p.triggers.response GetSecs];
+%         end
+%         
+%         if p.eyeTracking
+%             Eyelink('Message', 'EVENT_RESPONSE');
+%         end
+%     end
     
     % Feedback
     if response==targetState
